@@ -1,4 +1,8 @@
-/* Daemon Lifecycle and Failsafe Header for the X3D Toggle Project */
+/* Daemon Lifecycle and Failsafe Header for the X3D Toggle Project
+ *
+ * `daemon.h` - Header only
+ */
+
 #ifndef DAEMON_H
 #define DAEMON_H
 

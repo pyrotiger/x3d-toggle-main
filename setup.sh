@@ -39,7 +39,14 @@ fi
 set_config() {
     local key="$1"
     local val="$2"
-    sed -i "s|^${key}=.*|${key}=${val}|" "$CONF_FILE"
+    _temp_file="${CONF_FILE}.tmp"
+    while IFS= read -r _l_line || [ -n "$_l_line" ]; do
+        case "$_l_line" in
+            "${key}="*) echo "${key}=${val}" ;;
+            *) echo "$_l_line" ;;
+        esac
+    done < "$CONF_FILE" > "$_temp_file"
+    mv -f "$_temp_file" "$CONF_FILE"
 }
 
 printf_br

@@ -1,4 +1,8 @@
-/* Mode Execution Header for the X3D Toggle Project */
+/* Mode Execution Header for the X3D Toggle Project
+ *
+ * `modes.h` - Header only
+ */
+ 
 #ifndef MODES_H
 #define MODES_H
 

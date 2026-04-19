@@ -9,13 +9,13 @@
  */
 
 #include "daemon.h"
-#include "bpf-user.h"
-#include "config.h"
+#include "bpf/bpf-user.h"
+#include "config.h" // IWYU pragma: keep
 #include "cppc.h"
 #include "error.h"
 #include "games.h"
 #include "ipc.h"
-#include "polling.h"
+#include "polling/polling.h"
 #include "status.h"
 #include "systemd.h"
 #include "xui.h"

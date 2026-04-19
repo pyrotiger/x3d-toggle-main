@@ -12,6 +12,9 @@
 #include "error.h"
 
 #define SERVICE_UNIT "x3d-toggle.service"
+#ifndef VAR_LOGS
+#define VAR_LOGS "/var/log/x3d-toggle/logs"
+#endif
 #ifndef offsetof
 #define offsetof(type, member) ((size_t)&((type *)0)->member)
 #endif

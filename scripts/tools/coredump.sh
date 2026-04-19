@@ -36,7 +36,9 @@ printf_step "💾 Coredump artifacts successfully saved to: $VAR_DUMPS"
 
 if [ -z "$EDITOR_CHOICE" ] || [ "$EDITOR_CHOICE" = "none" ] || [ "$EDITOR_CHOICE" = "terminal" ]; then
     printf_step "📜 Trace Output:"
-    cat "$_DUMP_INFO"
+    while IFS= read -r _l_line || [ -n "$_l_line" ]; do
+        echo "$_l_line"
+    done < "$_DUMP_INFO"
 else
     printf_step "✨ Launching IDE / Editor: $EDITOR_CHOICE"
     case "$EDITOR_CHOICE" in

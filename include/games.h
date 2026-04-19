@@ -1,6 +1,6 @@
 /* Shared Game List Loader for the X3D Toggle Project
  *
- * `games.h` -Header only
+ * `games.h` - Header only
  */
 
 #ifndef GAMES_H

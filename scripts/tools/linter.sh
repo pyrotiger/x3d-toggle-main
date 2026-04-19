@@ -74,7 +74,13 @@ printf_step "${WAND} Running valgrind (Status Check) for memory leaks..."
 valgrind $VALGRIND_FLAGS ./bin/x3d-toggle status > "$JOURNAL_AUDIT/valgrind.txt" 2>&1
 VAL_RES=$?
 if [ $VAL_RES -ne 0 ]; then
-    if grep -q "Fatal error at startup" "$JOURNAL_AUDIT/valgrind.txt"; then
+    _fatal_error=0
+    while IFS= read -r _l_line || [ -n "$_l_line" ]; do
+        case "$_l_line" in
+            *"Fatal error at startup"*) _fatal_error=1; break ;;
+        esac
+    done < "$JOURNAL_AUDIT/valgrind.txt"
+    if [ "$_fatal_error" -eq 1 ]; then
         printf_step "2,${WARN} Notice: Valgrind startup failed (Missing system symbols/Stripped ld.so)."
         printf_step "2,        This is a system environment issue, not a project memory leak."
     else

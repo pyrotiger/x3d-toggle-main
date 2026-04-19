@@ -1,4 +1,8 @@
-/* Telemetry and Status Header for the X3D Toggle Project */
+/* Telemetry and Status Header for the X3D Toggle Project
+ *
+ * `status.h` - Header only
+ */
+
 #ifndef STATUS_H
 #define STATUS_H
 

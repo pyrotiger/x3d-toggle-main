@@ -6,7 +6,6 @@
 #ifndef SYSTEMD_H
 #define SYSTEMD_H
 
-//#include "error.h"
 #include "modes.h" // IWYU pragma: keep
 
 extern volatile sig_atomic_t reload_flag;

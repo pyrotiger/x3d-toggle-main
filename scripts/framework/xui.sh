@@ -198,7 +198,6 @@ printf_center() {
     for _l_str in "$@"; do
         _l_len=${#_l_str}
         
-        # Posix way to count icon widths (Manual audit of used icons)
         case "$_l_str" in 
             *"$ALRIGHT"*|*"$XOUT"*|*"$WARN"*|*"$NOTICE"*|*"$WIPE"*|*"$ROCKET"*|*"$SPARKLE"*|*"$LLAP"*|*"$CACHED"*|*"$FREQU"*|*"$CACHELIZ"*|*"$CACHEBEAR"*|*"$QUERY"*|*"$TOPSWAP"*|*"$PINNED"*|*"$HUT"*|*"$SLEEPY"*|*"$STOPSIGN"*|*"$SCHED"*|*"$BOOST"*|*"$CCD0"*|*"$CCD1"*|*"$DRIVER"*|*"$EPP"*|*"$GOV"*|*"$SMT"*|*"$PLAT"*|*"$CHICKEN"*|*"$MANUAL"*|*"$DUALIZE"*|*"$WIZARD"*|*"$WAND"*)
                 _l_len=$((_l_len + 1)) ;;

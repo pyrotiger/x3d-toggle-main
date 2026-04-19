@@ -84,7 +84,7 @@ If you are running a non-Arch distro without `pacman` or `makepkg`:
 git clone https://github.com/pyrotiger/x3d-toggle-main.git
 cd x3d-toggle
 make
-sudo make install
+sudo make install setup
 ```
 
 ### 🎮  Application Usage  🎮
@@ -150,7 +150,7 @@ To uninstall all binaries and assets, run the following:
 
 ```bash
 cd to /path/to/folder/x3d-toggle
-sudo make uninstall
+sudo make purge
 ```
 
 ---
