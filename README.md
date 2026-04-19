@@ -1,8 +1,8 @@
 # AMD X3D V-Cache Technology Optimizer - v2.0.0
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/pyrotiger/x3d-toggle-main/LICENSE.md)
-[![Architecture: POSIX C](https://img.shields.io/badge/Architecture-POSIX%20C-orange.svg)](https://github.com/pyrotiger/x3d-toggle-main/ARCHITECTURE.md)
-[![Engine: eBPF](https://img.shields.io/badge/Engine-eBPF-green.svg)](https://github.com/pyrotiger/x3d-toggle-main/README.md)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/pyrotiger/x3d-toggle-main/blob/main/LICENSE.md)
+[![Architecture: POSIX C](https://img.shields.io/badge/Architecture-POSIX%20C-orange.svg)](https://github.com/pyrotiger/x3d-toggle-main/blob/main/ARCHITECTURE.md)
+[![Engine: eBPF](https://img.shields.io/badge/Engine-eBPF-green.svg)](https://github.com/pyrotiger/x3d-toggle-main/blob/main/README.md)
 
 ## X3D Toggle - Community Edition
 
