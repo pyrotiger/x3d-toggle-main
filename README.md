@@ -142,7 +142,7 @@ More advanced, persistent overrides can be found in the **User Configuration** d
 
 ### 📟  CLI Command Lifecycle  📟
 
-* Review [x3d-toggle.1](x3d-toggle.1) for more information
+* Review [x3d-toggle.1](/docs/x3d-toggle.1) for more information
 
 ### 🚮  Uninstallation  🚮
 
