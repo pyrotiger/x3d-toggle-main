@@ -149,6 +149,7 @@ int affinity_default(pid_t pid);
 int affinity_swap(pid_t pid);
 int affinity_auto(pid_t pid);
 int affinity_dual(pid_t pid);
+int affinity_partition(pid_t pid, int partition);
 pid_t fork(void);
 int execve(const char *path, char *const argv[], char *const envp[]);
 pid_t waitpid(pid_t pid, int *status, int options);

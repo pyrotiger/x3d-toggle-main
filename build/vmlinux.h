@@ -23801,19 +23801,20 @@ enum pmc_type {
 };
 
 enum poc_level {
-	POC_LV1A = 0,
-	POC_LV1A_CPU = 1,
-	POC_LV1B = 2,
-	POC_LV2 = 3,
-	POC_LV3 = 4,
-	POC_LV4A = 5,
-	POC_LV4B = 6,
-	POC_LV4 = 7,
-	POC_LV4_TGT = 8,
-	POC_LV5 = 9,
-	POC_LV6 = 10,
-	POC_FALLBACK = 11,
-	POC_NR_LEVELS = 12,
+	POC_LV1S = 0,
+	POC_LV1T = 1,
+	POC_LV1P = 2,
+	POC_LV1R = 3,
+	POC_LV2 = 4,
+	POC_LV3 = 5,
+	POC_LV4S = 6,
+	POC_LV4P = 7,
+	POC_LV4R = 8,
+	POC_LV4T = 9,
+	POC_LV5 = 10,
+	POC_LV6 = 11,
+	POC_FALLBACK = 12,
+	POC_NR_LEVELS = 13,
 };
 
 enum poll_time_type {
@@ -25094,6 +25095,13 @@ enum scan_result {
 	SCAN_COPY_MC = 28,
 	SCAN_PAGE_FILLED = 29,
 	SCAN_PAGE_DIRTY_OR_WRITEBACK = 30,
+};
+
+enum sched_tunable_scaling {
+	SCHED_TUNABLESCALING_NONE = 0,
+	SCHED_TUNABLESCALING_LOG = 1,
+	SCHED_TUNABLESCALING_LINEAR = 2,
+	SCHED_TUNABLESCALING_END = 3,
 };
 
 enum scrub_stripe_flags {
@@ -28874,10 +28882,8 @@ enum vmscan_throttle_state {
 enum vmscape_mitigations {
 	VMSCAPE_MITIGATION_NONE = 0,
 	VMSCAPE_MITIGATION_AUTO = 1,
-	VMSCAPE_MITIGATION_ON = 2,
-	VMSCAPE_MITIGATION_IBPB_EXIT_TO_USER = 3,
-	VMSCAPE_MITIGATION_IBPB_ON_VMEXIT = 4,
-	VMSCAPE_MITIGATION_BHB_CLEAR_EXIT_TO_USER = 5,
+	VMSCAPE_MITIGATION_IBPB_EXIT_TO_USER = 2,
+	VMSCAPE_MITIGATION_IBPB_ON_VMEXIT = 3,
 };
 
 enum vmx_feature_leafs {
@@ -32913,7 +32919,6 @@ struct ZSTD_DCtx_s {
 	size_t rleSize;
 	size_t staticSize;
 	int isFrameDecompression;
-	int bmi2;
 	ZSTD_DDict *ddictLocal;
 	const ZSTD_DDict *ddict;
 	U32 dictID;
@@ -45812,33 +45817,6 @@ struct boot_triggers {
 	char *trigger;
 };
 
-struct bore_bc {
-	union {
-		struct {
-			u64 timestamp: 48;
-			u64 penalty: 16;
-		};
-		u64 value;
-	};
-};
-
-struct bore_ctx {
-	u64 burst_time;
-	u16 prev_penalty;
-	u16 curr_penalty;
-	union {
-		u16 penalty;
-		struct {
-			u8 _;
-			u8 score;
-		};
-	};
-	bool stop_update;
-	bool futex_waiting;
-	struct bore_bc subtree;
-	struct bore_bc group;
-};
-
 struct bp_slots_histogram {
 	atomic_t count[4];
 };
@@ -58014,6 +57992,7 @@ struct cgroup {
 	struct list_head pidlists;
 	struct mutex pidlist_mutex;
 	wait_queue_head_t offline_waitq;
+	wait_queue_head_t dying_populated_waitq;
 	struct work_struct release_agent_work;
 	struct psi_group *psi;
 	struct cgroup_bpf bpf;
@@ -58032,9 +58011,6 @@ struct cgroup {
 			};
 		};
 	};
-	long: 64;
-	long: 64;
-	long: 64;
 	long: 64;
 	long: 64;
 	long: 64;
@@ -60042,6 +60018,11 @@ struct compat_readdir_callback {
 	struct compat_old_linux_dirent __attribute__((btf_type_tag("user"))) *dirent;
 	int result;
 };
+
+struct compat_resume_swap_area {
+	compat_loff_t offset;
+	u32 dev;
+} __attribute__((packed));
 
 struct compat_rlimit {
 	compat_ulong_t rlim_cur;
@@ -107907,12 +107888,19 @@ struct netns_ipvs;
 
 struct mpls_route;
 
+struct seqcount_mutex {
+	seqcount_t seqcount;
+};
+
+typedef struct seqcount_mutex seqcount_mutex_t;
+
 struct netns_mpls {
 	int ip_ttl_propagate;
 	int default_ttl;
 	size_t platform_labels;
 	struct mpls_route __attribute__((btf_type_tag("rcu"))) * __attribute__((btf_type_tag("rcu"))) *platform_label;
 	struct mutex platform_mutex;
+	seqcount_mutex_t platform_label_seq;
 	struct ctl_table_header *ctl;
 };
 
@@ -108067,7 +108055,6 @@ struct net {
 	struct sock *diag_nlsk;
 	struct netns_smc smc;
 	struct netns_vsock vsock;
-	long: 64;
 	long: 64;
 	long: 64;
 };
@@ -122585,6 +122572,11 @@ struct resume_performance_record {
 	u64 resume_avg;
 };
 
+struct resume_swap_area {
+	__kernel_loff_t offset;
+	__u32 dev;
+} __attribute__((packed));
+
 struct resv_map {
 	struct kref refs;
 	spinlock_t lock;
@@ -123616,9 +123608,12 @@ struct scx_rq {
 	cpumask_var_t cpus_to_kick_if_idle;
 	cpumask_var_t cpus_to_preempt;
 	cpumask_var_t cpus_to_wait;
+	cpumask_var_t cpus_to_sync;
+	bool kick_sync_pending;
 	unsigned long kick_sync;
 	local_t reenq_local_deferred;
 	struct balance_callback deferred_bal_cb;
+	struct balance_callback kick_sync_bal_cb;
 	struct irq_work deferred_irq_work;
 	struct irq_work kick_cpus_irq_work;
 	struct scx_dispatch_q bypass_dsq;
@@ -123688,6 +123683,14 @@ struct rq {
 	unsigned int has_blocked_load;
 	unsigned long last_blocked_load_update_tick;
 	call_single_data_t nohz_csd;
+	unsigned int poc_idle_committed;
+	long: 64;
+	long: 64;
+	long: 64;
+	long: 64;
+	long: 64;
+	long: 64;
+	long: 64;
 	struct uclamp_rq uclamp[2];
 	unsigned int uclamp_flags;
 	long: 64;
@@ -123708,10 +123711,6 @@ struct rq {
 	const struct sched_class *next_class;
 	unsigned long next_balance;
 	struct mm_struct *prev_mm;
-	long: 64;
-	long: 64;
-	long: 64;
-	long: 64;
 	long: 64;
 	u64 clock_task;
 	u64 clock_pelt;
@@ -124897,10 +124896,13 @@ struct sched_domain_shared {
 	u8 poc_affinity_shift;
 	bool poc_fast_eligible;
 	bool poc_cluster_valid;
+	u8 poc_smt_shift;
+	u64 poc_primary_mask;
 	long: 64;
 	long: 64;
 	long: 64;
-	long: 64;
+	u8 poc_idle_cpus[64];
+	u8 poc_idle_cores[64];
 	atomic64_t poc_idle_cpus_mask;
 	long: 64;
 	long: 64;
@@ -133085,7 +133087,6 @@ struct task_struct {
 	struct sched_dl_entity dl;
 	struct sched_dl_entity *dl_server;
 	struct sched_ext_entity scx;
-	struct bore_ctx bore;
 	const struct sched_class *sched_class;
 	struct rb_node core_node;
 	unsigned long core_cookie;
@@ -133096,10 +133097,6 @@ struct task_struct {
 	bool throttled;
 	struct uclamp_se uclamp_req[2];
 	struct uclamp_se uclamp[2];
-	long: 64;
-	long: 64;
-	long: 64;
-	long: 64;
 	long: 64;
 	long: 64;
 	long: 64;
@@ -149264,8 +149261,9 @@ struct usb_device {
 	unsigned int do_remote_wakeup: 1;
 	unsigned int reset_resume: 1;
 	unsigned int port_is_suspended: 1;
-	unsigned int offload_at_suspend: 1;
+	unsigned int offload_pm_locked: 1;
 	int offload_usage;
+	spinlock_t offload_lock;
 	enum usb_link_tunnel_mode tunnel_mode;
 	struct device_link *usb4_link;
 	int slot_id;

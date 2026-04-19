@@ -211,7 +211,7 @@ int cli_daemon_wake(int argc, char *argv[]) {
   journal_error(
       ERR_IPC,
       "Failed to poke daemon (Code: %d). Is the service actively running?",
-      ipc_res);
+      (r1 | r2 | r3));
   return 1;
 }
 

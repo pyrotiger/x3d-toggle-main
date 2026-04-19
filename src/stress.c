@@ -60,7 +60,7 @@ int cli_stress_cpu(int argc, char *argv[]) {
 
         while (active) {
             printf_step("${ALRIGHT} Shifting load to LATENCY CCD (CCD0)...");
-            affinity_apply_partition(worker, PART_CACHE);
+            affinity_partition(worker, PART_CACHE);
             
             for (int i = 0; i < interval && active; i++) {
                 struct timespec ts = {1, 0};
@@ -70,7 +70,7 @@ int cli_stress_cpu(int argc, char *argv[]) {
             if (!active) break;
 
             printf_step("${ALRIGHT} Shifting load to THROUGHPUT CCD (CCD1)...");
-            affinity_apply_partition(worker, PART_FREQ);
+            affinity_partition(worker, PART_FREQ);
 
             for (int i = 0; i < interval && active; i++) {
                 struct timespec ts = {1, 0};

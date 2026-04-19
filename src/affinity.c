@@ -106,7 +106,7 @@ int affinity_swap(pid_t pid) {
 
 /* Internal implementation of the 'affinity_set' protocol used by the daemon 
  * to enforce rules from affinity.conf */
-int affinity_apply_partition(pid_t pid, int partition) {
+int affinity_partition(pid_t pid, int partition) {
     switch (partition) {
         case 1: return cgroup_write_pid("cache", pid);
         case 2: return cgroup_write_pid("frequency", pid);

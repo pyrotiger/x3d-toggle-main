@@ -17,7 +17,8 @@
 extern volatile int active_override;
 extern DaemonConfig cfg;
 extern bool bpf_active;
-extern int bpf_game(void);
+extern bool bpf_game(void);
+extern void bpf_poll(int timeout_ms);
 
 extern gamelist gl;
 
@@ -90,8 +91,14 @@ void polling_run(CPUStats *p_stat, CPUStats *c_stat, char *current, char *target
 
     int sysfs_ok = (mode(current, 32) == ERR_SUCCESS);
     if (active_override < 3 && strcmp(cfg.daemon_state, "default") == 0) {
-      int eg = bpf_active ? bpf_game() : 0;
-      int pg = detect_game();
+      int eg = 0, pg = 0;
+
+      if (bpf_active) {
+        bpf_poll(0);
+        eg = bpf_game();
+      } else {
+        pg = detect_game();
+      }
 
       if (active_override == 1)
         scat(target, "cache", 32);
