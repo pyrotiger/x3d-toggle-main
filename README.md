@@ -42,7 +42,7 @@ X3D Toggle follows a strict **Model-View-Controller (MVC)** philosophy:
 * **XUI (View):** A cross-platform UI logic layer (`x3d-xui`) that synchronizes iconography and formatting between Bash and C components.
 * **Frontends (View):** CLI (`x3d-toggle`), Tray Icons, and optional Web/GTK interfaces.
 
-For a deep dive into the system design, see [ARCHITECTURE.md](../documentation/ARCHITECTURE.md).
+For a deep dive into the system design, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### 🖥️  XUI (X3D User Interface)  🖥️
 
