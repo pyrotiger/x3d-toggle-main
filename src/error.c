@@ -161,11 +161,16 @@ void journal_file(const char *level, const char *summary, const char *ctx) {
 
 static msg_t journal_get(error_code code) {
   int val = (int)code;
-  if (val > 0 && val <= 17)
+  int status_max = (int)(sizeof(registry_status) / sizeof(registry_status[0]));
+  int msg_max = (int)(sizeof(registry_msg) / sizeof(registry_msg[0]));
+
+  if (val > 0 && val < status_max)
     return registry_status[val];
+  
   val = (val < 0) ? -val : val;
-  if (val >= 0 && val <= 35)
+  if (val >= 0 && val < msg_max)
     return registry_msg[val];
+    
   return (msg_t){"Unknown Condition", "Unknown code generated"};
 }
 
