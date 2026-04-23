@@ -5,8 +5,9 @@
 *.gch
 *.out
 
-bin/*
-build/*
+bin/
+build/
+pkg/
 
 vmlinux.h
 x3d-xui.h
@@ -24,9 +25,7 @@ x3d
 trace-*.log
 dev/logging/
 dev/auditing/
-dev/sandbox/
 
-pkg/
 *.pkg.tar.zst
 *.pkg.tar.xz
 
@@ -36,10 +35,8 @@ compile_commands.json
 .cache/
 .kdev4/
 .vscode/
-
 *.code-workspace
 *.kdev4
-
 *~
 .directory
 *.kate-swp
