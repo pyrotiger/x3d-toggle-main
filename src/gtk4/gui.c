@@ -8,6 +8,7 @@
 #include <adwaita.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 
 static GtkWidget *lbl_status_dump = NULL;
 
@@ -16,6 +17,9 @@ static void log_gui_error(const char *msg) {
     if (pid == 0) {
         execlp("x3d-toggle", "x3d-toggle", "gui-log", msg, (char *)NULL);
         _exit(1);
+    } else if (pid > 0) {
+        /* Reap the child immediately since gui-log is fast */
+        waitpid(pid, NULL, 0);
     }
 }
 
@@ -53,6 +57,9 @@ static void on_action_clicked(GtkButton *btn, gpointer user_data) {
     if (pid == 0) {
         execlp("x3d-toggle", "x3d-toggle", cmd, (char *)NULL);
         _exit(1);
+    } else if (pid > 0) {
+        /* Reap the child immediately since x3d-toggle commands are fast */
+        waitpid(pid, NULL, 0);
     } else if (pid < 0) {
         char err_msg[256];
         snprintf(err_msg, sizeof(err_msg), "fork() failed when attempting to execute command: %s", cmd);
