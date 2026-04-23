@@ -33,6 +33,9 @@ package_x3d-toggle() {
     pkgdesc="AMD X3D V-Cache Technology Optimizer (POSIX C / eBPF Edition)"
     depends=('glibc' 'libbpf')
 
+    optdepends=('gtk4: GTK4 dashboard frontend'
+                'libadwaita: Modern adaptive GTK4 widgets')
+
     backup=('etc/x3d-toggle.d/settings.conf'
             'etc/x3d-toggle.d/games.conf')
 

@@ -155,6 +155,23 @@ if [ -d "$DESKTOP_DIR" ] && [ -f "/usr/share/applications/x3d-toggle.desktop" ];
 fi
 
 if [ -n "$ACTUAL_USER" ] && [ "$ACTUAL_USER" != "root" ]; then
+    printf_step "[7b] Graphical Dashboard (Optional)"
+    printf_step "    A native GTK4 dashboard is available for graphical management."
+    printf_step_no_nl "❓ Install the GTK4 GUI? [y/N] "
+    read -r opt_gui
+    case "$opt_gui" in
+        [Yy]*)
+            if [ -f "./scripts/framework/gui.sh" ]; then
+                . ./scripts/framework/gui.sh
+            elif [ -f "/usr/lib/x3d-toggle/scripts/framework/gui.sh" ]; then
+                . /usr/lib/x3d-toggle/scripts/framework/gui.sh
+            else
+                printf_step "⚠️  Cannot locate gui.sh framework script. Skipping."
+            fi
+            ;;
+    esac
+    printf_br
+
     printf_step "[8] User Identity & System Synchronization"
     
     printf_step "    Syncing system identity and hardware permissions..."

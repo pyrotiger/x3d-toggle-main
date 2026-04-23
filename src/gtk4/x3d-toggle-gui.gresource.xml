@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/org/x3d-toggle/gui">
+    <file>theme.css</file>
+    <file>x3d-toggle.ui</file>
+    <file alias="x3d-toggle.jpg">../../assets/x3d-toggle.jpg</file>
+  </gresource>
+</gresources>

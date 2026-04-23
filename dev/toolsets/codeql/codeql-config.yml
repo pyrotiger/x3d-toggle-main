@@ -1,0 +1,23 @@
+name: "X3D-Toggle CodeQL Configuration"
+
+# Disable default queries to only run specific query suites if desired,
+# or leave disabled to run the default set (which we do here by not specifying 'disable-default-queries').
+
+# We are using the extended security-and-quality suite for deeper C/C++ analysis.
+queries:
+  - uses: security-and-quality
+
+# Specify directories to exclude from the CodeQL scan (e.g., third-party libs, generated files)
+paths-ignore:
+  - 'build/'
+  - 'bin/'
+  - 'assets/'
+  - 'config/'
+  - 'packaging/'
+  - 'docs/'
+
+# Specify directories to explicitly include
+paths:
+  - 'src/'
+  - 'include/'
+  - 'scripts/'
