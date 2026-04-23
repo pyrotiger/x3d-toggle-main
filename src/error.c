@@ -79,7 +79,8 @@ static const msg_t registry_msg[] = {
     [32] = {"Build Artifact Permission Overlap", "Permission denied on: %s. Run 'sudo make clean'."},
     [33] = {"OBLITERATION ABORTED: Self-Destruction Guard Triggered", "Safety Check failed: You are currently working inside the directory you are trying to delete. Path: %s"},
     [34] = {"Cgroup Resource Isolation Failed", "Ephemeral core-set migration rejected (Locked or restricted): %s"},
-    [35] = {"Affinity Migration Disruption", "Universal Protocol failed to migrate process affinity (Code: %d)"}
+    [35] = {"Affinity Migration Disruption", "Universal Protocol failed to migrate process affinity (Code: %d)"},
+    [36] = {"GUI Execution Failure", "Dashboard error: %s"}
 };
 
 static const msg_t registry_status[] = {

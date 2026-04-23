@@ -65,6 +65,7 @@ typedef int error_code;
 #define ERR_SAFETY       -33
 #define ERR_CGROUP       -34
 #define ERR_AFFINITY     -35
+#define ERR_GUI          -36
 
 void journal_error(error_code code, ...);
 void journal_warn(error_code code, ...);

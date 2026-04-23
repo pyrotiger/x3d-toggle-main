@@ -159,4 +159,11 @@ int cli_misc_fallback(int argc, char *argv[]) {
   return 1;
 }
 
+int cli_gui_log(int argc, char *argv[]) {
+  if (argc > 2) {
+    journal_error(ERR_GUI, argv[2]);
+  }
+  return 0;
+}
+
 /* end of MISC.C */

@@ -11,18 +11,33 @@
 
 static GtkWidget *lbl_status_dump = NULL;
 
+static void log_gui_error(const char *msg) {
+    pid_t pid = fork();
+    if (pid == 0) {
+        execlp("x3d-toggle", "x3d-toggle", "gui-log", msg, (char *)NULL);
+        _exit(1);
+    }
+}
+
 static gboolean update_dashboard_cb(gpointer user_data) {
     (void)user_data;
     if (!lbl_status_dump) return G_SOURCE_CONTINUE;
 
-    FILE *fp = popen("x3d-toggle status 2>/dev/null", "r");
-    if (!fp) return G_SOURCE_CONTINUE;
+    FILE *fp = popen("x3d-toggle status", "r");
+    if (!fp) {
+        log_gui_error("Failed to execute popen for x3d-toggle status");
+        gtk_label_set_label(GTK_LABEL(lbl_status_dump), "Error: Failed to launch x3d-toggle status.");
+        return G_SOURCE_CONTINUE;
+    }
 
     char buf[4096] = {0};
-    fread(buf, 1, sizeof(buf) - 1, fp);
+    size_t bytes_read = fread(buf, 1, sizeof(buf) - 1, fp);
+    if (ferror(fp)) {
+        log_gui_error("fread encountered an error while reading daemon status");
+    }
     pclose(fp);
 
-    if (strlen(buf) > 0) {
+    if (bytes_read > 0) {
         gtk_label_set_label(GTK_LABEL(lbl_status_dump), buf);
     } else {
         gtk_label_set_label(GTK_LABEL(lbl_status_dump), "Daemon offline or unreachable.");
@@ -33,13 +48,16 @@ static gboolean update_dashboard_cb(gpointer user_data) {
 static void on_action_clicked(GtkButton *btn, gpointer user_data) {
     (void)btn;
     const char *cmd = (const char *)user_data;
-    char exec_buf[256];
-    snprintf(exec_buf, sizeof(exec_buf), "x3d-toggle %s", cmd);
 
-    /* Fork so we don't block the GTK main loop */
-    if (fork() == 0) {
-        execlp("sh", "sh", "-c", exec_buf, (char *)NULL);
+    pid_t pid = fork();
+    if (pid == 0) {
+        execlp("x3d-toggle", "x3d-toggle", cmd, (char *)NULL);
         _exit(1);
+    } else if (pid < 0) {
+        char err_msg[256];
+        snprintf(err_msg, sizeof(err_msg), "fork() failed when attempting to execute command: %s", cmd);
+        log_gui_error(err_msg);
+        g_printerr("Error: %s\n", err_msg);
     }
 }
 

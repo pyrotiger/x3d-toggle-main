@@ -134,6 +134,7 @@ const Command cmd_table[] = {
     {"bible", cli_misc_insults, "Alias for insults"},
     {"sched-gaming", cli_scheduler_gaming, "Scheduler: Tighten CFS to 3ms + BORE Shift 14"},
     {"sched-balanced", cli_scheduler_balanced, "Scheduler: Restore 5ms CFS + BORE Shift 12"},
+    {"gui-log", cli_gui_log, "Internal: Log GUI errors"},
 
     {NULL, NULL, NULL}};
 
