@@ -6,6 +6,7 @@
 
 #include <adwaita.h>
 #include <gtk/gtk.h>
+#include "status.h"
 
 extern int socket_send(const char *cmd, char *response, size_t resp_len);
 extern size_t scat(char *dest, const char *src, size_t dest_size);
@@ -16,6 +17,23 @@ extern int printf_sn(char *buf, size_t size, const char *fmt, ...);
 #define BUFF_STATE 16
 
 static GtkWidget *lbl_status_dump = NULL;
+static GtkStack *content_stack = NULL;
+
+/* Detail Page Labels */
+static GtkWidget *lbl_stat_daemon_state = NULL;
+static GtkWidget *lbl_stat_ipc_status = NULL;
+static GtkWidget *lbl_stat_ebpf_status = NULL;
+static GtkWidget *lbl_stat_sched_mode = NULL;
+
+static GtkWidget *lbl_stat_vcache_mode = NULL;
+static GtkWidget *lbl_stat_boost_mode = NULL;
+static GtkWidget *lbl_stat_ccd_status = NULL;
+
+static GtkWidget *lbl_stat_driver_mode = NULL;
+static GtkWidget *lbl_stat_epp_profile = NULL;
+static GtkWidget *lbl_stat_cppc_gov = NULL;
+static GtkWidget *lbl_stat_smt_status = NULL;
+static GtkWidget *lbl_stat_platform = NULL;
 
 static void log_gui_error(const char *msg) {
   char cmd[BUFF_LINE];
@@ -28,47 +46,37 @@ static gboolean update_dashboard_cb(gpointer user_data) {
   if (!lbl_status_dump)
     return G_SOURCE_CONTINUE;
 
-  char info[BUFF_INFO] = {0};
-  if (socket_send("DAEMON_INFO", info, sizeof(info)) != 0) {
-    gtk_label_set_label(GTK_LABEL(lbl_status_dump),
-                        "Daemon offline or unreachable.");
+  Status st;
+  if (daemon_status(&st) != 0) {
+    gtk_label_set_label(GTK_LABEL(lbl_status_dump), "Error fetching status.");
     return G_SOURCE_CONTINUE;
   }
 
+  /* Update Dashboard Summary */
   char display[BUFF_LINE * 2];
-  char state_str[BUFF_STATE] = "Unknown";
-  char active_str[BUFF_STATE] = "Inactive";
-  char interval_str[BUFF_STATE] = "0.5";
-
-  char *st = strstr(info, "STATE=");
-  char *ba = strstr(info, "BPF_ACTIVE=");
-  char *ri = strstr(info, "REFRESH_INTERVAL=");
-
-  if (st) {
-    scat(state_str, st + 6, sizeof(state_str));
-    char *sem = strchr(state_str, ';');
-    if (sem)
-      *sem = '\0';
-  }
-  if (ba && atoi(ba + 11))
-    scat(active_str, "eBPF (Active)", sizeof(active_str));
-  else
-    scat(active_str, "Polling", sizeof(active_str));
-
-  if (ri) {
-    scat(interval_str, ri + 17, sizeof(interval_str));
-    char *sem = strchr(interval_str, ';');
-    if (sem)
-      *sem = '\0';
-  }
-
   printf_sn(display, sizeof(display),
             "<b>Daemon State:</b>  %s\n"
             "<b>Detection:</b>     %s\n"
-            "<b>Refresh Rate:</b>   %ss",
-            state_str, active_str, interval_str);
-
+            "<b>Refresh Rate:</b>   %.1fs",
+            st.daemon_state, st.ebpf_status, st.refresh_interval);
   gtk_label_set_markup(GTK_LABEL(lbl_status_dump), display);
+
+  /* Update Detail Pages */
+  if (lbl_stat_daemon_state) gtk_label_set_text(GTK_LABEL(lbl_stat_daemon_state), st.daemon_state);
+  if (lbl_stat_ipc_status) gtk_label_set_text(GTK_LABEL(lbl_stat_ipc_status), st.ipc_status);
+  if (lbl_stat_ebpf_status) gtk_label_set_text(GTK_LABEL(lbl_stat_ebpf_status), st.ebpf_status);
+  if (lbl_stat_sched_mode) gtk_label_set_text(GTK_LABEL(lbl_stat_sched_mode), st.d_mode);
+
+  if (lbl_stat_vcache_mode) gtk_label_set_text(GTK_LABEL(lbl_stat_vcache_mode), st.c_mode);
+  if (lbl_stat_boost_mode) gtk_label_set_text(GTK_LABEL(lbl_stat_boost_mode), st.st_buff);
+  if (lbl_stat_ccd_status) gtk_label_set_text(GTK_LABEL(lbl_stat_ccd_status), st.ccd_state);
+
+  if (lbl_stat_driver_mode) gtk_label_set_text(GTK_LABEL(lbl_stat_driver_mode), st.d_buff);
+  if (lbl_stat_epp_profile) gtk_label_set_text(GTK_LABEL(lbl_stat_epp_profile), st.epp);
+  if (lbl_stat_cppc_gov) gtk_label_set_text(GTK_LABEL(lbl_stat_cppc_gov), st.gov);
+  if (lbl_stat_smt_status) gtk_label_set_text(GTK_LABEL(lbl_stat_smt_status), st.smt);
+  if (lbl_stat_platform) gtk_label_set_text(GTK_LABEL(lbl_stat_platform), st.plat);
+
   return G_SOURCE_CONTINUE;
 }
 
@@ -105,11 +113,27 @@ static GtkWidget *add_nav_row(GtkListBox *list, const char *id,
 
 static void on_nav_row_selected(GtkListBox *box, GtkListBoxRow *row,
                                 gpointer user_data) {
+  (void)box;
   if (!row)
     return;
   GtkStack *stack = GTK_STACK(user_data);
   const char *id = gtk_widget_get_name(GTK_WIDGET(row));
   gtk_stack_set_visible_child_name(stack, id);
+}
+
+static void on_status_nav_clicked(GtkGestureClick *gesture, int n_press, double x, double y, gpointer user_data) {
+  (void)gesture; (void)n_press; (void)x; (void)y;
+  const char *target = (const char *)user_data;
+  if (content_stack) {
+    gtk_stack_set_visible_child_name(content_stack, target);
+  }
+}
+
+static void on_back_clicked(GtkButton *btn, gpointer user_data) {
+  (void)btn; (void)user_data;
+  if (content_stack) {
+    gtk_stack_set_visible_child_name(content_stack, "dashboard");
+  }
 }
 
 static void on_app_activate(GtkApplication *app, gpointer user_data) {
@@ -140,22 +164,59 @@ static void on_app_activate(GtkApplication *app, gpointer user_data) {
       GTK_WIDGET(gtk_builder_get_object(builder, "lbl_status_dump"));
 
   /* Bind Navigation */
-  GtkListBox *sidebar =
+  GtkListBox *sidebar_top =
       GTK_LIST_BOX(gtk_builder_get_object(builder, "sidebar_list"));
-  GtkStack *stack = GTK_STACK(gtk_builder_get_object(builder, "content_stack"));
+  GtkListBox *sidebar_bottom =
+      GTK_LIST_BOX(gtk_builder_get_object(builder, "sidebar_bottom_list"));
+  content_stack = GTK_STACK(gtk_builder_get_object(builder, "content_stack"));
 
-  add_nav_row(sidebar, "dashboard", "Dashboard");
-  add_nav_row(sidebar, "modes", "Hardware Modes");
-  add_nav_row(sidebar, "daemon", "Daemon Settings");
+  add_nav_row(sidebar_top, "dashboard", "Dashboard");
+  add_nav_row(sidebar_bottom, "settings", "Settings");
+  add_nav_row(sidebar_bottom, "docs", "Documentation");
 
-  g_signal_connect(sidebar, "row-selected", G_CALLBACK(on_nav_row_selected),
-                   stack);
+  g_signal_connect(sidebar_top, "row-selected", G_CALLBACK(on_nav_row_selected),
+                   content_stack);
+  g_signal_connect(sidebar_bottom, "row-selected", G_CALLBACK(on_nav_row_selected),
+                   content_stack);
+
+  /* Bind Dashboard Status Nav Indicators */
+  const char *status_navs[] = {"nav_daemon_status", "daemon_status_page",
+                               "nav_vcache_status", "vcache_status_page",
+                               "nav_cppc_status",   "cppc_status_page", NULL};
+  for (int i = 0; status_navs[i] != NULL; i += 2) {
+    GObject *row = gtk_builder_get_object(builder, status_navs[i]);
+    if (row) {
+      GtkGesture *click = gtk_gesture_click_new();
+      g_signal_connect(click, "pressed", G_CALLBACK(on_status_nav_clicked), (gpointer)status_navs[i+1]);
+      gtk_widget_add_controller(GTK_WIDGET(row), GTK_EVENT_CONTROLLER(click));
+    }
+  }
+
+  /* Bind Detail Labels */
+  lbl_stat_daemon_state = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_stat_daemon_state"));
+  lbl_stat_ipc_status   = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_stat_ipc_status"));
+  lbl_stat_ebpf_status  = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_stat_ebpf_status"));
+  lbl_stat_sched_mode   = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_stat_sched_mode"));
+  lbl_stat_vcache_mode  = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_stat_vcache_mode"));
+  lbl_stat_boost_mode   = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_stat_boost_mode"));
+  lbl_stat_ccd_status   = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_stat_ccd_status"));
+  lbl_stat_driver_mode  = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_stat_driver_mode"));
+  lbl_stat_epp_profile  = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_stat_epp_profile"));
+  lbl_stat_cppc_gov     = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_stat_cppc_gov"));
+  lbl_stat_smt_status   = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_stat_smt_status"));
+  lbl_stat_platform     = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_stat_platform"));
+
+  /* Deselect from one list when something is selected in the other */
+  g_signal_connect_swapped(sidebar_top, "row-selected", 
+                           G_CALLBACK(gtk_list_box_unselect_all), sidebar_bottom);
+  g_signal_connect_swapped(sidebar_bottom, "row-selected", 
+                           G_CALLBACK(gtk_list_box_unselect_all), sidebar_top);
 
   /* Select Dashboard by default */
-  GtkListBoxRow *first_row = gtk_list_box_get_row_at_index(sidebar, 0);
+  GtkListBoxRow *first_row = gtk_list_box_get_row_at_index(sidebar_top, 0);
   if (first_row) {
-    gtk_list_box_select_row(sidebar, first_row);
-    on_nav_row_selected(sidebar, first_row, stack);
+    gtk_list_box_select_row(sidebar_top, first_row);
+    on_nav_row_selected(sidebar_top, first_row, content_stack);
   }
 
   /* Bind Actions automatically by ID (action_x3dtoggle_<cmd>) */
@@ -174,7 +235,14 @@ static void on_app_activate(GtkApplication *app, gpointer user_data) {
     }
   }
 
-  g_object_unref(builder);
+  /* Bind Back Buttons */
+  const char *back_btns[] = {"btn_back_daemon", "btn_back_vcache", "btn_back_cppc", NULL};
+  for (int i = 0; back_btns[i] != NULL; i++) {
+    GObject *btn = gtk_builder_get_object(builder, back_btns[i]);
+    if (btn) {
+      g_signal_connect(btn, "clicked", G_CALLBACK(on_back_clicked), NULL);
+    }
+  }
   gtk_window_present(window);
 
   /* Start Live Dashboard Polling */
