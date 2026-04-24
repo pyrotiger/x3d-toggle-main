@@ -20,6 +20,12 @@ void debug_sysfs(const char *pattern) {
     write(1, buf, strlen(buf));
     
     ret = glob(pattern, 0, NULL, &glob_result);
+    if (ret != 0) {
+        printf_sn(buf, sizeof(buf), "glob() ret=%d\n", ret);
+        write(1, buf, strlen(buf));
+        return;
+    }
+
     printf_sn(buf, sizeof(buf), "glob() ret=%d, count=%zu\n", ret, glob_result.gl_pathc);
     write(1, buf, strlen(buf));
     
