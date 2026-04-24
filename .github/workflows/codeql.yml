@@ -33,7 +33,7 @@ jobs:
         languages: cpp
         config-file: dev/toolsets/codeql/codeql-config.yml
 
-    - name: Build X3D-Toggle (CLI + eBPF)
+    - name: Build X3D-Toggle (CLI)
       run: |
         make all
         
