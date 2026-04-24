@@ -6,10 +6,12 @@
 ## Modular eBPF artifact generator for the X3D Toggle Project.
 ## Synchronized with the framework and error registry.
 
-if [ "$X3D_EXEC" != "1" ]; then exit 1; fi
-
 _l_dir_lib="$(cd "$(dirname "$0")" && pwd)"
 . "$_l_dir_lib/framework.sh"
+
+if [ "$X3D_EXEC" != "1" ]; then
+    journal_write -37
+fi
 
 VERIFY=0
 GEN_EBPF=0

@@ -5,10 +5,12 @@
 ##
 ## Installation bridge for icon assets.
 
-if [ "$X3D_EXEC" != "1" ]; then exit 1; fi
-
 _l_dir_lib="$(cd "$(dirname "$0")" && pwd)"
-. "$_l_dir_lib/framework.so"
+. "$_l_dir_lib/framework.sh"
+
+if [ "$X3D_EXEC" != "1" ]; then
+    journal_write -37
+fi
 
 install_assets() {
     install -dm755 "$DESTDIR$DIR_ASSETS"

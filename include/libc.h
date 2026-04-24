@@ -27,6 +27,10 @@ typedef unsigned long sigset_t;
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1
 
+#define FILENO_STDIN  0
+#define FILENO_STDOUT 1
+#define FILENO_STDERR 2
+
 #define ENOENT   2
 #define EAGAIN  11
 #define EACCES  13

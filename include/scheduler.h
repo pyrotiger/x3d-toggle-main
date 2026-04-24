@@ -14,10 +14,7 @@ typedef enum {
     SCHED_GAMING
 } sched_t;
 
-/* Sets the system-wide scheduler profile (Requires Root) */
 int scheduler_set(sched_t mode);
-
-/* Checks for BORE support in the current kernel */
 bool scheduler_check(void);
 
 #endif // SCHEDULER.H

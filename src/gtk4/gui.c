@@ -6,147 +6,180 @@
 
 #include <gtk/gtk.h>
 #include <adwaita.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/wait.h>
+
+extern int socket_send(const char *cmd, char *response, size_t resp_len);
+extern size_t scat(char *dest, const char *src, size_t dest_size);
+extern int printf_sn(char *buf, size_t size, const char *fmt, ...);
+
+#define BUFF_LINE    256
+#define BUFF_INFO    128
+#define BUFF_STATE   16
 
 static GtkWidget *lbl_status_dump = NULL;
 
 static void log_gui_error(const char *msg) {
-    pid_t pid = fork();
-    if (pid == 0) {
-        execlp("x3d-toggle", "x3d-toggle", "gui-log", msg, (char *)NULL);
-        _exit(1);
-    } else if (pid > 0) {
-        /* Reap the child immediately since gui-log is fast */
-        waitpid(pid, NULL, 0);
-    }
+  char cmd[BUFF_LINE];
+  printf_sn(cmd, sizeof(cmd), "GUI_LOG %s", msg);
+  socket_send(cmd, NULL, 0);
 }
 
 static gboolean update_dashboard_cb(gpointer user_data) {
-    (void)user_data;
-    if (!lbl_status_dump) return G_SOURCE_CONTINUE;
-
-    FILE *fp = popen("x3d-toggle status", "r");
-    if (!fp) {
-        log_gui_error("Failed to execute popen for x3d-toggle status");
-        gtk_label_set_label(GTK_LABEL(lbl_status_dump), "Error: Failed to launch x3d-toggle status.");
-        return G_SOURCE_CONTINUE;
-    }
-
-    char buf[4096] = {0};
-    size_t bytes_read = fread(buf, 1, sizeof(buf) - 1, fp);
-    if (ferror(fp)) {
-        log_gui_error("fread encountered an error while reading daemon status");
-    }
-    pclose(fp);
-
-    if (bytes_read > 0) {
-        gtk_label_set_label(GTK_LABEL(lbl_status_dump), buf);
-    } else {
-        gtk_label_set_label(GTK_LABEL(lbl_status_dump), "Daemon offline or unreachable.");
-    }
+  (void)user_data;
+  if (!lbl_status_dump)
     return G_SOURCE_CONTINUE;
+
+  char info[BUFF_INFO] = {0};
+  if (socket_send("DAEMON_INFO", info, sizeof(info)) != 0) {
+    gtk_label_set_label(GTK_LABEL(lbl_status_dump),
+                        "Daemon offline or unreachable.");
+    return G_SOURCE_CONTINUE;
+  }
+
+  char display[BUFF_LINE * 2];
+  char state_str[BUFF_STATE] = "Unknown";
+  char active_str[BUFF_STATE] = "Inactive";
+  char interval_str[BUFF_STATE] = "0.5";
+
+  char *st = strstr(info, "STATE=");
+  char *ba = strstr(info, "BPF_ACTIVE=");
+  char *ri = strstr(info, "REFRESH_INTERVAL=");
+
+  if (st) {
+    scat(state_str, st + 6, sizeof(state_str));
+    char *sem = strchr(state_str, ';');
+    if (sem)
+      *sem = '\0';
+  }
+  if (ba && atoi(ba + 11))
+    scat(active_str, "eBPF (Active)", sizeof(active_str));
+  else
+    scat(active_str, "Polling", sizeof(active_str));
+
+  if (ri) {
+    scat(interval_str, ri + 17, sizeof(interval_str));
+    char *sem = strchr(interval_str, ';');
+    if (sem)
+      *sem = '\0';
+  }
+
+  printf_sn(display, sizeof(display),
+            "<b>Daemon State:</b>  %s\n"
+            "<b>Detection:</b>     %s\n"
+            "<b>Refresh Rate:</b>   %ss",
+            state_str, active_str, interval_str);
+
+  gtk_label_set_markup(GTK_LABEL(lbl_status_dump), display);
+  return G_SOURCE_CONTINUE;
 }
 
 static void on_action_clicked(GtkButton *btn, gpointer user_data) {
-    (void)btn;
-    const char *cmd = (const char *)user_data;
+  (void)btn;
+  const char *cmd = (const char *)user_data;
+  char ipc_cmd[BUFF_LINE];
 
-    pid_t pid = fork();
-    if (pid == 0) {
-        execlp("x3d-toggle", "x3d-toggle", cmd, (char *)NULL);
-        _exit(1);
-    } else if (pid > 0) {
-        /* Reap the child immediately since x3d-toggle commands are fast */
-        waitpid(pid, NULL, 0);
-    } else if (pid < 0) {
-        char err_msg[256];
-        snprintf(err_msg, sizeof(err_msg), "fork() failed when attempting to execute command: %s", cmd);
-        log_gui_error(err_msg);
-        g_printerr("Error: %s\n", err_msg);
-    }
+  if (strcmp(cmd, "cache") == 0 || strcmp(cmd, "frequency") == 0) {
+    printf_sn(ipc_cmd, sizeof(ipc_cmd), "SET_MODE %s", cmd);
+  } else if (strcmp(cmd, "auto") == 0 || strcmp(cmd, "default") == 0) {
+    printf_sn(ipc_cmd, sizeof(ipc_cmd), "SET_DAEMON %s", cmd);
+  } else if (strcmp(cmd, "stop") == 0) {
+    scat(ipc_cmd, "DAEMON_DISABLE", sizeof(ipc_cmd));
+  } else {
+    scat(ipc_cmd, "DAEMON_INFO", sizeof(ipc_cmd));
+  }
+
+  if (socket_send(ipc_cmd, NULL, 0) != 0) {
+    log_gui_error("Failed to send IPC command from GUI");
+  }
 }
 
-static GtkWidget* add_nav_row(GtkListBox *list, const char *id, const char *title) {
-    GtkWidget *row = gtk_list_box_row_new();
-    gtk_widget_set_name(row, id);
-    GtkWidget *lbl = gtk_label_new(title);
-    gtk_label_set_xalign(GTK_LABEL(lbl), 0.0f);
-    gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), lbl);
-    gtk_list_box_append(list, row);
-    return row;
+static GtkWidget *add_nav_row(GtkListBox *list, const char *id,
+                              const char *title) {
+  GtkWidget *row = gtk_list_box_row_new();
+  gtk_widget_set_name(row, id);
+  GtkWidget *lbl = gtk_label_new(title);
+  gtk_label_set_xalign(GTK_LABEL(lbl), 0.0f);
+  gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), lbl);
+  gtk_list_box_append(list, row);
+  return row;
 }
 
-static void on_nav_row_selected(GtkListBox *box, GtkListBoxRow *row, gpointer user_data) {
-    if (!row) return;
-    GtkStack *stack = GTK_STACK(user_data);
-    const char *id = gtk_widget_get_name(GTK_WIDGET(row));
-    gtk_stack_set_visible_child_name(stack, id);
+static void on_nav_row_selected(GtkListBox *box, GtkListBoxRow *row,
+                                gpointer user_data) {
+  if (!row)
+    return;
+  GtkStack *stack = GTK_STACK(user_data);
+  const char *id = gtk_widget_get_name(GTK_WIDGET(row));
+  gtk_stack_set_visible_child_name(stack, id);
 }
 
 static void on_app_activate(GtkApplication *app, gpointer user_data) {
-    (void)user_data;
+  (void)user_data;
 
-    /* Silence libadwaita dark theme warnings and enforce dark mode */
-    AdwStyleManager *style_manager = adw_style_manager_get_default();
-    adw_style_manager_set_color_scheme(style_manager, ADW_COLOR_SCHEME_FORCE_DARK);
+  /* Silence libadwaita dark theme warnings and enforce dark mode */
+  AdwStyleManager *style_manager = adw_style_manager_get_default();
+  adw_style_manager_set_color_scheme(style_manager,
+                                     ADW_COLOR_SCHEME_FORCE_DARK);
 
-    /* Load CSS */
-    GtkCssProvider *provider = gtk_css_provider_new();
-    gtk_css_provider_load_from_resource(provider, "/org/x3d-toggle/gui/theme.css");
-    gtk_style_context_add_provider_for_display(
-        gdk_display_get_default(),
-        GTK_STYLE_PROVIDER(provider),
-        GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  /* Load CSS */
+  GtkCssProvider *provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_resource(provider,
+                                      "/org/x3d-toggle/gui/theme.css");
+  gtk_style_context_add_provider_for_display(
+      gdk_display_get_default(), GTK_STYLE_PROVIDER(provider),
+      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-    /* Load UI */
-    GtkBuilder *builder = gtk_builder_new_from_resource("/org/x3d-toggle/gui/x3d-toggle.ui");
-    
-    GtkWindow *window = GTK_WINDOW(gtk_builder_get_object(builder, "main_window"));
-    gtk_window_set_application(window, app);
+  /* Load UI */
+  GtkBuilder *builder =
+      gtk_builder_new_from_resource("/org/x3d-toggle/gui/x3d-toggle.ui");
 
-    lbl_status_dump = GTK_WIDGET(gtk_builder_get_object(builder, "lbl_status_dump"));
+  GtkWindow *window =
+      GTK_WINDOW(gtk_builder_get_object(builder, "main_window"));
+  gtk_window_set_application(window, app);
 
-    /* Bind Navigation */
-    GtkListBox *sidebar = GTK_LIST_BOX(gtk_builder_get_object(builder, "sidebar_list"));
-    GtkStack *stack = GTK_STACK(gtk_builder_get_object(builder, "content_stack"));
-    
-    add_nav_row(sidebar, "dashboard", "Dashboard");
-    add_nav_row(sidebar, "modes", "Hardware Modes");
-    add_nav_row(sidebar, "daemon", "Daemon Settings");
-    
-    g_signal_connect(sidebar, "row-selected", G_CALLBACK(on_nav_row_selected), stack);
+  lbl_status_dump =
+      GTK_WIDGET(gtk_builder_get_object(builder, "lbl_status_dump"));
 
-    /* Bind Actions automatically by ID (action_x3dtoggle_<cmd>) */
-    const char *actions[] = {
-        "cache", "frequency", "dual", "default", "auto",
-        "wake", "sleep", "stop", "enable", "start", NULL
-    };
+  /* Bind Navigation */
+  GtkListBox *sidebar =
+      GTK_LIST_BOX(gtk_builder_get_object(builder, "sidebar_list"));
+  GtkStack *stack = GTK_STACK(gtk_builder_get_object(builder, "content_stack"));
 
-    for (int i = 0; actions[i] != NULL; i++) {
-        char btn_id[64];
-        snprintf(btn_id, sizeof(btn_id), "action_x3dtoggle_%s", actions[i]);
-        GObject *obj = gtk_builder_get_object(builder, btn_id);
-        if (obj) {
-            char *cmd_copy = g_strdup(actions[i]);
-            g_signal_connect_data(obj, "clicked", G_CALLBACK(on_action_clicked),
-                                  cmd_copy, (GClosureNotify)g_free, 0);
-        }
+  add_nav_row(sidebar, "dashboard", "Dashboard");
+  add_nav_row(sidebar, "modes", "Hardware Modes");
+  add_nav_row(sidebar, "daemon", "Daemon Settings");
+
+  g_signal_connect(sidebar, "row-selected", G_CALLBACK(on_nav_row_selected),
+                   stack);
+
+  /* Bind Actions automatically by ID (action_x3dtoggle_<cmd>) */
+  const char *actions[] = {"cache",  "frequency", "dual",  "default",
+                           "auto",   "wake",      "sleep", "stop",
+                           "enable", "start",     NULL};
+
+  for (int i = 0; actions[i] != NULL; i++) {
+    char btn_id[64];
+    printf_sn(btn_id, sizeof(btn_id), "action_x3dtoggle_%s", actions[i]);
+    GObject *obj = gtk_builder_get_object(builder, btn_id);
+    if (obj) {
+      char *cmd_copy = g_strdup(actions[i]);
+      g_signal_connect_data(obj, "clicked", G_CALLBACK(on_action_clicked),
+                            cmd_copy, (GClosureNotify)g_free, 0);
     }
+  }
 
-    g_object_unref(builder);
-    gtk_window_present(window);
+  g_object_unref(builder);
+  gtk_window_present(window);
 
-    /* Start Live Dashboard Polling */
-    g_timeout_add_seconds(1, update_dashboard_cb, NULL);
-    update_dashboard_cb(NULL); /* Initial fetch */
+  /* Start Live Dashboard Polling */
+  g_timeout_add_seconds(1, update_dashboard_cb, NULL);
+  update_dashboard_cb(NULL); /* Initial fetch */
 }
 
 int main(int argc, char **argv) {
-    AdwApplication *app = adw_application_new("org.x3d-toggle.gui", G_APPLICATION_DEFAULT_FLAGS);
-    g_signal_connect(app, "activate", G_CALLBACK(on_app_activate), NULL);
-    int status = g_application_run(G_APPLICATION(app), argc, argv);
-    g_object_unref(app);
-    return status;
+  AdwApplication *app =
+      adw_application_new("org.x3d-toggle.gui", G_APPLICATION_DEFAULT_FLAGS);
+  g_signal_connect(app, "activate", G_CALLBACK(on_app_activate), NULL);
+  int status = g_application_run(G_APPLICATION(app), argc, argv);
+  g_object_unref(app);
+  return status;
 }

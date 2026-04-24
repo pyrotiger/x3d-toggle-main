@@ -12,6 +12,7 @@
 int errno = 0;
 char **environ;
 
+#ifndef LIBC_NO_BOOTSTRAP
 __asm__(
     ".section .text\n"
     ".global _start\n"
@@ -27,6 +28,7 @@ __asm__(
     "   mov $60, %rax\n"             /* SYS_exit */
     "   syscall\n"
 );
+#endif
 
 static unsigned int _next = 1;
 void srand(unsigned int seed) { _next = seed; }

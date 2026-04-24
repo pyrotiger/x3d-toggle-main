@@ -5,11 +5,12 @@
 ##
 ## Identifies the V-Cache CCD by mapping the L3 cache boundary of Core 0.
 
-if [ "$X3D_FRAMEWORK" != "1" ] && [ "$X3D_EXEC" != "1" ]; then exit 1; fi
-
-
 _l_dir_lib="$(cd "$(dirname "$0")" && pwd)"
 . "$_l_dir_lib/framework.sh"
+
+if [ "$X3D_FRAMEWORK" != "1" ] && [ "$X3D_EXEC" != "1" ]; then
+    journal_write -37
+fi
 
 CCD0_CORES=""
 for idx in /sys/devices/system/cpu/cpu0/cache/index*; do

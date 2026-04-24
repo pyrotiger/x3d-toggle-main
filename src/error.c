@@ -80,7 +80,8 @@ static const msg_t registry_msg[] = {
     [33] = {"OBLITERATION ABORTED: Self-Destruction Guard Triggered", "Safety Check failed: You are currently working inside the directory you are trying to delete. Path: %s"},
     [34] = {"Cgroup Resource Isolation Failed", "Ephemeral core-set migration rejected (Locked or restricted): %s"},
     [35] = {"Affinity Migration Disruption", "Universal Protocol failed to migrate process affinity (Code: %d)"},
-    [36] = {"GUI Execution Failure", "Dashboard error: %s"}
+    [36] = {"GUI Execution Failure", "Dashboard error: %s"},
+    [37] = {"Direct execution restricted", "Please use the 'x3d-toggle' CLI or run via the installer."},
 };
 
 static const msg_t registry_status[] = {
@@ -107,9 +108,13 @@ static const msg_t registry_status[] = {
         "Status monitor is already open. Close the existing window first."},
     [17] = {"Developer Sync", "UI Framework and build artifacts successfully re-scaffolded."}};
 
+static int syslog_fd = -1;
+
 void journal_syslog(int priority, const char *summary, const char *ctx) {
-  int fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
-  if (fd < 0) return;
+  if (syslog_fd < 0) {
+    syslog_fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+  }
+  if (syslog_fd < 0) return;
 
   struct sockaddr_un addr;
   memset(&addr, 0, sizeof(addr));
@@ -123,14 +128,13 @@ void journal_syslog(int priority, const char *summary, const char *ctx) {
     "MESSAGE=%s: %s\n",
     priority, summary, ctx);
 
-  sendto(fd, buf, len, 0, (struct sockaddr *)&addr, sizeof(addr));
-  close(fd);
+  sendto(syslog_fd, buf, len, 0, (struct sockaddr *)&addr, sizeof(addr));
 }
 
 void journal_file(const char *level, const char *summary, const char *ctx) {
   static char log_path[256] = {0};
   struct timespec ts;
-  clock_gettime(0, &ts);
+  clock_gettime(CLOCK_REALTIME, &ts);
 
   if (log_path[0] == 0) {
     printf_sn(log_path, sizeof(log_path), 
@@ -168,7 +172,7 @@ static msg_t journal_get(error_code code) {
     return registry_status[val];
   
   val = (val < 0) ? -val : val;
-  if (val >= 0 && val < msg_max)
+  if (val < msg_max)
     return registry_msg[val];
     
   return (msg_t){"Unknown Condition", "Unknown code generated"};
@@ -287,7 +291,7 @@ void journal_exit(int exit_code, const char *format, ...) {
   va_end(args);
 
   const char *ftl_msg = "   ${COLOR_RED}${XOUT} FATAL: ${COLOR_RESET}Daemon termination forced. [FATAL]\n";
-  write(2, ftl_msg, strlen(ftl_msg));
+  write(FILENO_STDERR, ftl_msg, strlen(ftl_msg));
 
   journal_file("FTL", "Daemon Termination", ctx);
   journal_write(LOG_ERR, "FATAL EXIT: %s", ctx);

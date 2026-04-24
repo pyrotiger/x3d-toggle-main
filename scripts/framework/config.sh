@@ -5,10 +5,12 @@
 ## Generates `daemon.conf` in /etc/x3d-toggle.d/ for use/editing
 ## to build the x3d-toggle binary and modify runtime behavior
 
-if [ "$X3D_EXEC" != "1" ]; then exit 1; fi
-
 _l_dir_lib="$(cd "$(dirname "$0")" && pwd)"
 . "$_l_dir_lib/framework.sh"
+
+if [ "$X3D_EXEC" != "1" ]; then
+    journal_write -37
+fi
 . "$X3D_TOGGLE/config/settings.conf"
 
 guard() {

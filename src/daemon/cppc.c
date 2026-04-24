@@ -13,7 +13,6 @@
 #include "../build/ccd.h"
 
 #define _POSIX_C_SOURCE 202405L
-#define MAX_CPU_COUNT 128
 
 extern char **environ;
 
@@ -37,7 +36,10 @@ int cppc_tdp(int watts) {
     execve(args[0], args, environ);
     _exit(1);
   }
-  return ERR_SUCCESS;
+
+  int status;
+  waitpid(pid, &status, 0);
+  return (WIFEXITED(status) && WEXITSTATUS(status) == 0) ? ERR_SUCCESS : ERR_IO;
 }
 
 int cppc_perf(int val) {
@@ -45,7 +47,7 @@ int cppc_perf(int val) {
   printf_sn(val_str, sizeof(val_str), "%d", val);
   int ret = ERR_SUCCESS;
 
-  for (int i = 0; i < MAX_CPU_COUNT; i++) {
+  for (int i = 0; i < TOTAL_CORES; i++) {
     char path[256];
     printf_sn(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/acpi_cppc/desired_perf", i);
     int fd = open(path, O_WRONLY);
@@ -59,7 +61,7 @@ int cppc_perf(int val) {
 
 int cppc_epp(const char *val) {
   int ret = ERR_SUCCESS;
-  for (int i = 0; i < MAX_CPU_COUNT; i++) {
+  for (int i = 0; i < TOTAL_CORES; i++) {
     char path[256];
     printf_sn(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/energy_performance_preference", i);
     int fd = open(path, O_WRONLY);
@@ -97,7 +99,7 @@ int cppc_pstate(const char *val) {
 
 int cppc_governor(const char *val) {
   int ret = ERR_SUCCESS;
-  for (int i = 0; i < MAX_CPU_COUNT; i++) {
+  for (int i = 0; i < TOTAL_CORES; i++) {
     char path[256];
     printf_sn(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_governor", i);
     int fd = open(path, O_WRONLY);
@@ -125,11 +127,11 @@ int cppc_restore(void) {
     char *args[] = {(char *)"/usr/lib/x3d-toggle/scripts/tools/reset.sh", NULL};
     execve(args[0], args, environ);
     _exit(EXIT_FAILURE);
-  } else {
-    int status;
-    waitpid(pid, &status, 0);
-    return (WIFEXITED(status) && WEXITSTATUS(status) == 0) ? ERR_SUCCESS : ERR_IO;
   }
+
+  int status;
+  waitpid(pid, &status, 0);
+  return (WIFEXITED(status) && WEXITSTATUS(status) == 0) ? ERR_SUCCESS : ERR_IO;
 }
 
 static int cppc_cmd(const char *cmd_string, error_code success_code, const char *arg) {
@@ -206,7 +208,7 @@ int cli_cppc_mode(int argc, char *argv[]) {
 
 int cli_cppc_target(int argc, char *argv[]) {
     if (argc < 3) {
-        journal_error(ERR_SYNTAX, "Usage: x3d cppc-target [0-255]");
+        journal_error(ERR_SYNTAX, "Usage: x3d-toggle cppc-target [0-255]");
         return ERR_SYNTAX;
     }
 
@@ -230,7 +232,7 @@ int cli_cppc_governor(int argc, char *argv[]) {
 
 int cli_cppc_prefcore(int argc, char *argv[]) {
     if (argc < 3) {
-        journal_error(ERR_SYNTAX, "Usage: X3D prefcore [on|off]");
+        journal_error(ERR_SYNTAX, "Usage: x3d-toggle prefcore [on|off]");
         return ERR_SYNTAX;
     }
 

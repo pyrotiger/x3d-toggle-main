@@ -364,8 +364,8 @@ journal_write() {
         
         if [ "$_l_code" -lt 0 ]; then
             printf_br
-            printf_center "2,${XOUT} $_l_summary [X3D-$(( -_l_code ))] ${XOUT}" \
-                          "2,${_l_details}"
+            printf_center "${XOUT} $_l_summary [X3D-$(( -_l_code ))] ${XOUT}" \
+                          "${_l_details}"
             printf_br
             exit 1
         else
