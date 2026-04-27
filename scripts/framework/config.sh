@@ -49,6 +49,8 @@ guard "AFFINITY_MASK"
 guard "FALLBACK_PROFILE"
 guard "DAEMON_STATE"
 guard "SERVER_ADDRESS"
+guard "JOURNAL_KEEP"
+guard "JOURNAL_MAX_MB"
 
 _DAEMON_CONF="${DIR_BIN}/daemon.conf"
 
@@ -83,7 +85,9 @@ if [ "$1" = "--update" ]; then
                     "AFFINITY_MASK=${AFFINITY_MASK}" \
                     "FALLBACK_PROFILE=${FALLBACK_PROFILE}" \
                     "DAEMON_STATE=${DAEMON_STATE}" \
-                    "SERVER_ADDRESS=${SERVER_ADDRESS}"
+                    "SERVER_ADDRESS=${SERVER_ADDRESS}" \
+                    "JOURNAL_KEEP=${JOURNAL_KEEP}" \
+                    "JOURNAL_MAX_MB=${JOURNAL_MAX_MB}"
         printf_br
         printf_step "[GAMES_SYS]"
         while IFS= read -r _l_game; do
@@ -194,7 +198,9 @@ printf_step "2,${GEAR} Writing synchronized configuration payload: build/daemon.
                 "AFFINITY_MASK=${AFFINITY_MASK}" \
                 "FALLBACK_PROFILE=${FALLBACK_PROFILE}" \
                 "DAEMON_STATE=${DAEMON_STATE}" \
-                "SERVER_ADDRESS=${SERVER_ADDRESS}"
+                "SERVER_ADDRESS=${SERVER_ADDRESS}" \
+                "JOURNAL_KEEP=${JOURNAL_KEEP}" \
+                "JOURNAL_MAX_MB=${JOURNAL_MAX_MB}"
     printf_br
     printf_step "[GAMES_SYS]"
     while IFS= read -r _l_game; do

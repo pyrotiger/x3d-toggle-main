@@ -52,6 +52,7 @@ static int execute_unit_method(const char *method) {
     return (WIFEXITED(status) && WEXITSTATUS(status) == 0) ? ERR_SUCCESS
                                                            : ERR_IPC;
   }
+  return ERR_IPC;
 }
 
 int unit_start(void) { return execute_unit_method("start"); }
@@ -75,6 +76,7 @@ int unit_active(void) {
     waitpid(pid, &status, 0);
     return (WIFEXITED(status) && WEXITSTATUS(status) == 0);
   }
+  return 0;
 }
 
 volatile int active_override = 0;
@@ -136,7 +138,7 @@ void notify_ready(void) {
     memcpy(addr.sun_path, sock_path, path_len);
   }
 
-  socklen_t addr_len = offsetof(struct sockaddr_un, sun_path) + path_len;
+  __socklen_t addr_len = offsetof(struct sockaddr_un, sun_path) + path_len;
 
   const char *msg = "READY=1\n";
   (void)sendto(fd, msg, strlen(msg), MSG_NOSIGNAL, (struct sockaddr *)&addr,

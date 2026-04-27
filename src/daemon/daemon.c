@@ -56,7 +56,7 @@ int daemon(int argc, char *argv[]) {
   if (strlen(cfg.daemon_state) == 0) {
     scat(cfg.daemon_state, "default", sizeof(cfg.daemon_state));
   }
-  
+
   /* Enforce startup baseline: Default to Frequency (Throughput) */
   if (strcmp(cfg.daemon_state, "default") == 0) {
     cli_set_mode("frequency");

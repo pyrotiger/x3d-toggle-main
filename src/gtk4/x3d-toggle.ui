@@ -7,6 +7,8 @@
     <property name="title">X3D Toggle Dashboard</property>
     <property name="default-width">960</property>
     <property name="default-height">680</property>
+    <property name="width-request">800</property>
+    <property name="height-request">600</property>
     
     <property name="content">
       <object class="GtkBox">
@@ -71,22 +73,12 @@
                                 <child>
                                   <object class="GtkBox">
                                     <property name="orientation">vertical</property>
+                                    <property name="hexpand">true</property>
+                                    <property name="vexpand">false</property>
+                                    <property name="height-request">160</property>
                                     <style>
                                       <class name="x3d-hero"/>
                                     </style>
-                                    <child>
-                                      <object class="GtkPicture">
-                                        <property name="file">resource:///org/x3d-toggle/gui/x3d-toggle.jpg</property>
-                                        <property name="can-shrink">true</property>
-                                        <property name="content-fit">cover</property>
-                                        <property name="halign">center</property>
-                                        <property name="width-request">400</property>
-                                        <property name="height-request">160</property>
-                                        <style>
-                                          <class name="x3d-banner-img"/>
-                                        </style>
-                                      </object>
-                                    </child>
                                   </object>
                                 </child>
 
@@ -94,10 +86,13 @@
                                 <child>
                                   <object class="GtkBox">
                                     <property name="orientation">vertical</property>
+                                    <property name="vexpand">true</property>
+                                    <property name="hexpand">true</property>
+                                    <property name="valign">start</property>
                                     <style><class name="x3d-card"/></style>
                                     <child>
                                       <object class="GtkLabel">
-                                        <property name="label">DAEMON TELEMETRY</property>
+                                        <property name="label">DAEMON / CORE STATUS</property>
                                         <style><class name="x3d-card-title"/></style>
                                         <property name="halign">start</property>
                                       </object>
@@ -139,52 +134,134 @@
                                     
                                     <!-- Cache -->
                                     <child>
-                                      <object class="GtkBox">
-                                        <property name="orientation">vertical</property>
+                                      <object class="GtkButton" id="mode_card_cache">
+                                        <property name="can-focus">true</property>
                                         <style><class name="x3d-mode-card"/></style>
                                         <layout><property name="column">0</property><property name="row">0</property></layout>
-                                        <child><object class="GtkLabel"><property name="label">Cache</property><style><class name="x3d-accent"/></style><property name="halign">start</property></object></child>
-                                        <child><object class="GtkLabel"><property name="label">Prioritize 3D V-Cache CCD</property><style><class name="x3d-dim"/></style><property name="halign">start</property></object></child>
-                                        <child><object class="GtkButton" id="action_x3dtoggle_cache"><property name="label">Apply</property><style><class name="x3d-primary"/></style><property name="halign">end</property></object></child>
+                                        <child>
+                                          <object class="GtkBox">
+                                            <property name="orientation">vertical</property>
+                                            <child><object class="GtkLabel"><property name="label">Cache</property><style><class name="x3d-accent"/></style><property name="halign">start</property></object></child>
+                                            <child><object class="GtkLabel"><property name="label">Prioritize 3D V-Cache CCD</property><style><class name="x3d-dim"/></style><property name="halign">start</property></object></child>
+                                          </object>
+                                        </child>
                                       </object>
                                     </child>
                                     
                                     <!-- Frequency -->
                                     <child>
-                                      <object class="GtkBox">
-                                        <property name="orientation">vertical</property>
+                                      <object class="GtkButton" id="mode_card_frequency">
+                                        <property name="can-focus">true</property>
                                         <style><class name="x3d-mode-card"/></style>
                                         <layout><property name="column">1</property><property name="row">0</property></layout>
-                                        <child><object class="GtkLabel"><property name="label">Frequency</property><style><class name="x3d-accent"/></style><property name="halign">start</property></object></child>
-                                        <child><object class="GtkLabel"><property name="label">Prioritize frequency cores</property><style><class name="x3d-dim"/></style><property name="halign">start</property></object></child>
-                                        <child><object class="GtkButton" id="action_x3dtoggle_frequency"><property name="label">Apply</property><style><class name="x3d-primary"/></style><property name="halign">end</property></object></child>
+                                        <child>
+                                          <object class="GtkBox">
+                                            <property name="orientation">vertical</property>
+                                            <child><object class="GtkLabel"><property name="label">Frequency</property><style><class name="x3d-accent"/></style><property name="halign">start</property></object></child>
+                                            <child><object class="GtkLabel"><property name="label">Prioritize frequency cores</property><style><class name="x3d-dim"/></style><property name="halign">start</property></object></child>
+                                          </object>
+                                        </child>
                                       </object>
                                     </child>
 
                                     <!-- Dual -->
                                     <child>
-                                      <object class="GtkBox">
-                                        <property name="orientation">vertical</property>
+                                      <object class="GtkButton" id="mode_card_dual">
+                                        <property name="can-focus">true</property>
                                         <style><class name="x3d-mode-card"/></style>
                                         <layout><property name="column">0</property><property name="row">1</property></layout>
-                                        <child><object class="GtkLabel"><property name="label">Dual</property><style><class name="x3d-accent"/></style><property name="halign">start</property></object></child>
-                                        <child><object class="GtkLabel"><property name="label">Maximize throughput across CCDs</property><style><class name="x3d-dim"/></style><property name="halign">start</property></object></child>
-                                        <child><object class="GtkButton" id="action_x3dtoggle_dual"><property name="label">Apply</property><style><class name="x3d-primary"/></style><property name="halign">end</property></object></child>
+                                        <child>
+                                          <object class="GtkBox">
+                                            <property name="orientation">vertical</property>
+                                            <child><object class="GtkLabel"><property name="label">Dual</property><style><class name="x3d-accent"/></style><property name="halign">start</property></object></child>
+                                            <child><object class="GtkLabel"><property name="label">Maximize throughput across CCDs</property><style><class name="x3d-dim"/></style><property name="halign">start</property></object></child>
+                                          </object>
+                                        </child>
                                       </object>
                                     </child>
 
                                     <!-- Default -->
                                     <child>
-                                      <object class="GtkBox">
-                                        <property name="orientation">vertical</property>
+                                      <object class="GtkButton" id="mode_card_default">
+                                        <property name="can-focus">true</property>
                                         <style><class name="x3d-mode-card"/></style>
                                         <layout><property name="column">1</property><property name="row">1</property></layout>
-                                        <child><object class="GtkLabel"><property name="label">Default</property><style><class name="x3d-accent"/></style><property name="halign">start</property></object></child>
-                                        <child><object class="GtkLabel"><property name="label">Restore daemon default</property><style><class name="x3d-dim"/></style><property name="halign">start</property></object></child>
-                                        <child><object class="GtkButton" id="action_x3dtoggle_default"><property name="label">Apply</property><style><class name="x3d-primary"/></style><property name="halign">end</property></object></child>
+                                        <child>
+                                          <object class="GtkBox">
+                                            <property name="orientation">vertical</property>
+                                            <child><object class="GtkLabel"><property name="label">Default</property><style><class name="x3d-accent"/></style><property name="halign">start</property></object></child>
+                                            <child><object class="GtkLabel"><property name="label">Restore daemon default</property><style><class name="x3d-dim"/></style><property name="halign">start</property></object></child>
+                                          </object>
+                                        </child>
                                       </object>
                                     </child>
 
+                                    <!-- Auto/Reset -->
+                                    <child>
+                                      <object class="GtkButton" id="mode_card_reset">
+                                        <property name="can-focus">true</property>
+                                        <style><class name="x3d-mode-card"/></style>
+                                        <layout><property name="column">0</property><property name="row">2</property></layout>
+                                        <child>
+                                          <object class="GtkBox">
+                                            <property name="orientation">vertical</property>
+                                            <child><object class="GtkLabel"><property name="label">Auto/Reset</property><style><class name="x3d-accent"/></style><property name="halign">start</property></object></child>
+                                            <child><object class="GtkLabel"><property name="label">Restores Auto functions to CPPC</property><style><class name="x3d-dim"/></style><property name="halign">start</property></object></child>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+
+                                  </object>
+                                </child>
+
+                                <!-- Daemon Lifecycle Dropdown -->
+                                <child>
+                                  <object class="AdwActionRow">
+                                    <property name="title">Daemon Lifecycle</property>
+                                    <property name="subtitle">Quick management actions</property>
+                                    <child type="suffix">
+                                      <object class="GtkBox">
+                                        <property name="spacing">8</property>
+                                        <child>
+                                          <object class="GtkDropDown" id="lifecycle_dropdown">
+                                            <property name="model">
+                                              <object class="GtkStringList">
+                                                <items>
+                                                  <item>None</item>
+                                                  <item>Wake</item>
+                                                  <item>Sleep</item>
+                                                  <item>Stop</item>
+                                                  <item>Enable</item>
+                                                  <item>Autostart</item>
+                                                </items>
+                                              </object>
+                                            </property>
+                                            <property name="valign">center</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">12</property>
+                                    <property name="halign">end</property>
+                                    <property name="margin-top">24</property>
+                                    <child>
+                                      <object class="GtkButton" id="btn_mode_cancel">
+                                        <property name="label">Cancel</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkButton" id="btn_mode_apply">
+                                        <property name="label">Apply</property>
+                                        <style><class name="x3d-primary"/></style>
+                                      </object>
+                                    </child>
                                   </object>
                                 </child>
                               </object>
@@ -192,93 +269,351 @@
                           </object>
                         </child>
 
-                        <!-- Daemon Controls -->
+
+                        <!-- Configuration Page -->
                         <child>
                           <object class="GtkStackPage">
-                            <property name="name">daemon</property>
+                            <property name="name">configuration</property>
                             <property name="child">
                               <object class="GtkBox">
                                 <property name="orientation">vertical</property>
                                 <property name="spacing">12</property>
+                                <child><object class="GtkLabel"><property name="label">Configuration</property><style><class name="x3d-hero-title"/></style><property name="halign">start</property></object></child>
+
                                 <child>
-                                  <object class="GtkLabel">
-                                    <property name="label">Daemon Lifecycle</property>
-                                    <style><class name="x3d-hero-title"/></style>
-                                    <property name="halign">start</property>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Daemon Behavior</property>
+                                    <child><object class="AdwActionRow"><property name="title">Daemon State</property><property name="subtitle">Startup behavior (auto/manual/default)</property><child type="suffix"><object class="GtkDropDown" id="cfg_daemon_state"><property name="model"><object class="GtkStringList"><items><item>default</item><item>auto</item><item>manual</item></items></object></property><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Fallback Profile</property><property name="subtitle">Hardware profile when no games detected</property><child type="suffix"><object class="GtkDropDown" id="cfg_fallback_profile"><property name="model"><object class="GtkStringList"><items><item>default</item><item>cache</item><item>frequency</item></items></object></property><property name="valign">center</property></object></child></object></child>
+                                  </object>
+                                </child>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Detection</property>
+                                    <child><object class="AdwActionRow"><property name="title">Polling Interval</property><property name="subtitle">Seconds between activity checks (1-10)</property><child type="suffix"><object class="GtkScale" id="cfg_polling_interval"><property name="orientation">horizontal</property><property name="width-request">180</property><property name="draw-value">true</property><property name="digits">0</property><property name="valign">center</property><property name="adjustment"><object class="GtkAdjustment"><property name="lower">1</property><property name="upper">10</property><property name="step-increment">1</property><property name="value">3</property></object></property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Load Threshold</property><property name="subtitle">CPU % to trigger throughput mode (10-90)</property><child type="suffix"><object class="GtkScale" id="cfg_load_threshold"><property name="orientation">horizontal</property><property name="width-request">180</property><property name="draw-value">true</property><property name="digits">0</property><property name="valign">center</property><property name="adjustment"><object class="GtkAdjustment"><property name="lower">10</property><property name="upper">90</property><property name="step-increment">5</property><property name="value">50</property></object></property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Detection Level</property><property name="subtitle">Strict (Steam/Gamemode) or Loose</property><child type="suffix"><object class="GtkDropDown" id="cfg_detection_level"><property name="model"><object class="GtkStringList"><items><item>Strict</item><item>Loose</item></items></object></property><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">eBPF Scheduler</property><property name="subtitle">Use eBPF for workload detection</property><child type="suffix"><object class="GtkSwitch" id="cfg_ebpf_enable"><property name="valign">center</property></object></child></object></child>
+                                  </object>
+                                </child>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Advanced Settings</property>
+                                    <child>
+                                      <object class="AdwActionRow">
+                                        <property name="title">Advanced Configuration</property>
+                                        <property name="subtitle">Unhide the Advanced Configuration tab</property>
+                                        <child type="suffix">
+                                          <object class="GtkSwitch" id="cfg_advanced_enable">
+                                            <property name="valign">center</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+
+                        <!-- Developer Settings Page -->
+                        <child>
+                          <object class="GtkStackPage">
+                            <property name="name">developer</property>
+                            <property name="child">
+                              <object class="GtkBox">
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">12</property>
+                                <child><object class="GtkLabel"><property name="label">Developer Settings</property><style><class name="x3d-hero-title x3d-dev-title"/></style><property name="halign">start</property></object></child>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Clang-Tidy Static Analysis</property>
+                                    <child><object class="AdwActionRow"><property name="title">Diagnostics</property><property name="subtitle">Compiler warnings and diagnostics</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_clang_diagnostic"><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Bugprone</property><property name="subtitle">Checks for bug-prone code constructs</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_clang_bugprone"><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Modernize</property><property name="subtitle">Checks for modern C language standards</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_clang_modernize"><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Readability</property><property name="subtitle">Checks for code readability and style</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_clang_readability"><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Performance</property><property name="subtitle">Checks for performance-related issues</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_clang_performance"><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Portability</property><property name="subtitle">Checks for code portability issues</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_clang_portability"><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Analyzer</property><property name="subtitle">Enable Clang Static Analyzer checks</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_clang_analyzer"><property name="valign">center</property></object></child></object></child>
+                                  </object>
+                                </child>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Cppcheck Bug Hunting</property>
+                                    <child><object class="AdwActionRow"><property name="title">All Checks</property><property name="subtitle">Enable all available Cppcheck checks</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_cppcheck_all"><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Warnings</property><property name="subtitle">Enable warning messages</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_cppcheck_warning"><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Style</property><property name="subtitle">Enable coding style checks</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_cppcheck_style"><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Performance</property><property name="subtitle">Enable performance suggestions</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_cppcheck_performance"><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Portability</property><property name="subtitle">Enable portability warnings</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_cppcheck_portability"><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Information</property><property name="subtitle">Enable informational messages</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_cppcheck_information"><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Unused</property><property name="subtitle">Check for unused functions and variables</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_cppcheck_unused"><property name="valign">center</property></object></child></object></child>
+                                  </object>
+                                </child>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Valgrind Runtime Analysis</property>
+                                    <child><object class="AdwActionRow"><property name="title">Analysis Mode</property><property name="subtitle">full / summary / disabled</property><child type="suffix"><object class="GtkDropDown" id="cfg_lint_valgrind_mode"><property name="model"><object class="GtkStringList"><items><item>full</item><item>summary</item><item>disabled</item></items></object></property><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Leak Kinds</property><property name="subtitle">all / definite / indirect / possible / reachable</property><child type="suffix"><object class="GtkDropDown" id="cfg_lint_valgrind_kinds"><property name="model"><object class="GtkStringList"><items><item>all</item><item>definite</item><item>indirect</item><item>possible</item><item>reachable</item></items></object></property><property name="valign">center</property></object></child></object></child>
+                                    <child><object class="AdwActionRow"><property name="title">Origin Tracking</property><property name="subtitle">High CPU overhead</property><child type="suffix"><object class="GtkSwitch" id="cfg_lint_valgrind_origins"><property name="valign">center</property></object></child></object></child>
+                                  </object>
+                                </child>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+
+                        <!-- System Journal Page -->
+                        <child>
+                          <object class="GtkStackPage">
+                            <property name="name">debug</property>
+                            <property name="child">
+                              <object class="GtkBox">
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">12</property>
+                                <child><object class="GtkLabel"><property name="label">System Journal</property><style><class name="x3d-hero-title x3d-dev-title"/></style><property name="halign">start</property></object></child>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Diagnostics &amp; Auditing</property>
+                                    <child>
+                                      <object class="AdwActionRow">
+                                        <property name="title">Debug Logging</property>
+                                        <property name="subtitle">Enable trace-level diagnostic output</property>
+                                        <child type="suffix">
+                                          <object class="GtkSwitch" id="cfg_debug_enable">
+                                            <property name="valign">center</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="AdwActionRow">
+                                        <property name="title">Real-time Observer</property>
+                                        <property name="subtitle">Monitor daemon logic and kernel events</property>
+                                        <child type="suffix">
+                                          <object class="GtkButton" id="btn_launch_debug">
+                                            <property name="label">Launch Monitor</property>
+                                            <property name="valign">center</property>
+                                            <style><class name="x3d-primary"/></style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Coredump Analysis</property>
+                                    <child>
+                                      <object class="AdwActionRow">
+                                        <property name="title">Latest Crash Dump</property>
+                                        <property name="subtitle">Analyze the most recent daemon crash</property>
+                                        <child type="suffix">
+                                          <object class="GtkButton" id="btn_analyze_coredump">
+                                            <property name="label">Analyze</property>
+                                            <property name="valign">center</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Journal Maintenance</property>
+                                    <child>
+                                      <object class="AdwActionRow">
+                                        <property name="title">Archive Session</property>
+                                        <property name="subtitle">Compress all current log and audit files</property>
+                                        <child type="suffix">
+                                          <object class="GtkButton" id="btn_archive_journal">
+                                            <property name="label">Archive Now</property>
+                                            <property name="valign">center</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="AdwActionRow">
+                                        <property name="title">Manual Rotation</property>
+                                        <property name="subtitle">Force log rotation and retention cleanup</property>
+                                        <child type="suffix">
+                                          <object class="GtkButton" id="btn_rotate_journal">
+                                            <property name="label">Rotate</property>
+                                            <property name="valign">center</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Rotation Settings</property>
+                                    <child>
+                                      <object class="AdwActionRow">
+                                        <property name="title">Retention Days</property>
+                                        <property name="subtitle">Number of daily archives to keep</property>
+                                        <child type="suffix">
+                                          <object class="GtkSpinButton" id="cfg_journal_keep">
+                                            <property name="valign">center</property>
+                                            <property name="adjustment">
+                                              <object class="GtkAdjustment">
+                                                <property name="lower">1</property>
+                                                <property name="upper">30</property>
+                                                <property name="step-increment">1</property>
+                                                <property name="value">7</property>
+                                              </object>
+                                            </property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="AdwActionRow">
+                                        <property name="title">Max Size (MB)</property>
+                                        <property name="subtitle">Max file size before rotation</property>
+                                        <child type="suffix">
+                                          <object class="GtkDropDown" id="cfg_journal_max_mb">
+                                            <property name="valign">center</property>
+                                            <property name="model">
+                                              <object class="GtkStringList">
+                                                <items>
+                                                  <item>5</item>
+                                                  <item>10</item>
+                                                  <item>25</item>
+                                                  <item>50</item>
+                                                  <item>100</item>
+                                                </items>
+                                              </object>
+                                            </property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+
+                        <!-- Advanced Configuration Page -->
+                        <child>
+                          <object class="GtkStackPage">
+                            <property name="name">advanced</property>
+                            <property name="child">
+                              <object class="GtkBox">
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">12</property>
+                                <child><object class="GtkLabel"><property name="label">Advanced Configuration</property><style><class name="x3d-hero-title x3d-dev-title"/></style><property name="halign">start</property></object></child>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Thread Affinity</property>
+                                    <child><object class="AdwActionRow"><property name="title">Affinity Level</property><property name="subtitle">Thread placement strategy</property><child type="suffix"><object class="GtkDropDown" id="cfg_affinity_level"><property name="model"><object class="GtkStringList"><items><item>Auto</item><item>By Die</item><item>Manual</item></items></object></property><property name="valign">center</property></object></child></object></child>
+                                  </object>
+                                </child>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Advanced</property>
+                                    <child><object class="AdwActionRow"><property name="title">Developer Mode</property><property name="subtitle">Enable extended diagnostics and dev tools</property><child type="suffix"><object class="GtkSwitch" id="cfg_dev_enable"><property name="valign">center</property></object></child></object></child>
+                                  </object>
+                                </child>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup">
+                                    <property name="title">Network</property>
+                                    <child>
+                                      <object class="AdwActionRow">
+                                        <property name="title">Server IP</property>
+                                        <property name="subtitle">Remote IP Address</property>
+                                        <child type="suffix">
+                                          <object class="GtkEntry" id="cfg_server_ip">
+                                            <property name="valign">center</property>
+                                            <property name="width-request">200</property>
+                                            <property name="placeholder-text">127.0.0.1</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="AdwActionRow">
+                                        <property name="title">Server Port</property>
+                                        <property name="subtitle">Remote Endpoint Port</property>
+                                        <child type="suffix">
+                                          <object class="GtkEntry" id="cfg_server_port">
+                                            <property name="valign">center</property>
+                                            <property name="width-request">200</property>
+                                            <property name="placeholder-text">9370</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+
+                        <!-- About Page -->
+                        <child>
+                          <object class="GtkStackPage">
+                            <property name="name">extras</property>
+                            <property name="child">
+                              <object class="GtkBox">
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">12</property>
+                                <child><object class="GtkLabel"><property name="label">Extras</property><style><class name="x3d-hero-title"/></style><property name="halign">start</property></object></child>
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="spacing">12</property>
+                                    <child>
+                                      <object class="GtkDropDown" id="dropdown_extras">
+                                        <property name="model">
+                                          <object class="GtkStringList">
+                                            <items>
+                                              <item>README.md</item>
+                                              <item>ARCHITECTURE.md</item>
+                                              <item>x3d-toggle.1.md (Man Page)</item>
+                                              <item>misc.c (Great Book of Insults)</item>
+                                            </items>
+                                          </object>
+                                        </property>
+                                      </object>
+                                    </child>
                                   </object>
                                 </child>
                                 <child>
-                                  <object class="AdwPreferencesGroup">
-                                    <!-- Wake -->
-                                    <child>
-                                      <object class="AdwActionRow">
-                                        <property name="title">Wake</property>
-                                        <property name="subtitle">Refresh state loop via IPC</property>
-                                        <child type="suffix">
-                                          <object class="GtkButton" id="action_x3dtoggle_wake">
-                                            <property name="label">Wake</property>
-                                            <style><class name="x3d-primary"/></style>
-                                            <property name="valign">center</property>
-                                          </object>
-                                        </child>
+                                  <object class="GtkScrolledWindow">
+                                    <property name="vexpand">true</property>
+                                    <property name="hexpand">true</property>
+                                    <property name="child">
+                                      <object class="GtkTextView" id="txt_extras_view">
+                                        <property name="editable">false</property>
+                                        <property name="wrap-mode">word</property>
+                                        <property name="monospace">true</property>
+                                        <property name="top-margin">12</property>
+                                        <property name="bottom-margin">12</property>
+                                        <property name="left-margin">12</property>
+                                        <property name="right-margin">12</property>
+                                        <style><class name="x3d-value"/></style>
                                       </object>
-                                    </child>
-                                    <!-- Sleep -->
-                                    <child>
-                                      <object class="AdwActionRow">
-                                        <property name="title">Sleep</property>
-                                        <property name="subtitle">Suspend daemon logic loop</property>
-                                        <child type="suffix">
-                                          <object class="GtkButton" id="action_x3dtoggle_sleep">
-                                            <property name="label">Sleep</property>
-                                            <style><class name="x3d-primary"/></style>
-                                            <property name="valign">center</property>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                    <!-- Stop -->
-                                    <child>
-                                      <object class="AdwActionRow">
-                                        <property name="title">Stop</property>
-                                        <property name="subtitle">Kill daemon gracefully</property>
-                                        <child type="suffix">
-                                          <object class="GtkButton" id="action_x3dtoggle_stop">
-                                            <property name="label">Stop</property>
-                                            <style><class name="x3d-destructive"/></style>
-                                            <property name="valign">center</property>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                    <!-- Enable -->
-                                    <child>
-                                      <object class="AdwActionRow">
-                                        <property name="title">Enable</property>
-                                        <property name="subtitle">Start daemon (no autostart)</property>
-                                        <child type="suffix">
-                                          <object class="GtkButton" id="action_x3dtoggle_enable">
-                                            <property name="label">Enable</property>
-                                            <style><class name="x3d-primary"/></style>
-                                            <property name="valign">center</property>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                    <!-- Start -->
-                                    <child>
-                                      <object class="AdwActionRow">
-                                        <property name="title">Start</property>
-                                        <property name="subtitle">Start daemon and autostart</property>
-                                        <child type="suffix">
-                                          <object class="GtkButton" id="action_x3dtoggle_start">
-                                            <property name="label">Start</property>
-                                            <style><class name="x3d-primary"/></style>
-                                            <property name="valign">center</property>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
+                                    </property>
                                   </object>
                                 </child>
                               </object>

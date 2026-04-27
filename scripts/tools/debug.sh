@@ -1,11 +1,8 @@
 #!/bin/sh
 ## Debugger Script for the X3D Toggle Project
-##
 ## `debug.sh`
-##
 ## Usage: x3d-toggle debug
 ## [Args] = none
-##
 ## MVC Observer: Decoupled real-time monitor for X3D Toggle.
 ## Targets the daemon's logic state and the kernel's eBPF events.
 ## Maintains journal in `/var/log/x3d-toggle/audits/`
