@@ -35,7 +35,7 @@ headerbar {
 }
 
 .x3d-hero {
-  background: linear-gradient(135deg, #1a0a0a 0%, #0a0a0a 60%, #2a1508 100%);
+  background: linear-gradient(180deg, #000000 0%, #000000 45%, #1a0a0a 75%, #2a1508 100%);
   border-bottom: 2px solid #e8611a;
   border-radius: 12px;
   padding: 0;
@@ -44,7 +44,7 @@ headerbar {
 
 .x3d-banner-img {
   border-radius: 12px 12px 0 0;
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .x3d-hero-title {

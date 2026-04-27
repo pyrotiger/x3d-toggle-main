@@ -136,7 +136,9 @@ all: build
 
 $(TARGET_FRAMEWORK): framework
 framework:
+ifndef SKIP_FRAMEWORK
 	X3D_FRAMEWORK=1 X3D_EXEC=1 sh ./scripts/framework/framework.sh --sync
+endif
 	touch $(TARGET_FRAMEWORK)
 
 $(TARGET_UI) $(TARGET_CCD) $(TARGET_CONFIG): $(TARGET_FRAMEWORK)
@@ -205,16 +207,27 @@ install: build
 	install -m755 scripts/tools/*.sh $(DEST_TOOLS)/
 	install -m755 scripts/framework/*.sh $(DEST_FRAMEWORK)/
 	install -dm755 $(DEST_PIXMAPS)
+	install -m644 assets/x3d-toggle.jpg $(DEST_PIXMAPS)/x3d-toggle.jpg
 
-	-chown :x3d-toggle $(DEST_LOGS)
-	-chown :x3d-toggle $(DEST_AUDITS)
-	chmod 775 $(DEST_LOGS)
-	chmod 775 $(DEST_AUDITS)
+	install -dm755 $(DEST_APPS)
+	install -m644 packaging/x3d-toggle.desktop $(DEST_APPS)/x3d-toggle.desktop
 
-	-udevadm control --reload-rules && udevadm trigger
-	-systemd-sysusers
-	-systemd-tmpfiles --create
-	-systemctl daemon-reload
+	@udevadm control --reload-rules && udevadm trigger
+	@systemd-sysusers
+	@systemd-tmpfiles --create $(DEST_TMPFILES)/x3d_toggle-tmpfiles.conf
+
+	@chown :x3d-toggle $(DEST_LOGS)
+	@chown :x3d-toggle $(DEST_AUDITS)
+	@chmod 775 $(DEST_LOGS)
+	@chmod 775 $(DEST_AUDITS)
+
+	systemctl daemon-reload
+	@echo ""
+	@echo "============================================================================"
+	@echo ""
+	@echo "    Install complete. Run 'sudo make setup' to configure."
+	@echo ""
+	@echo "============================================================================"
 
 setup:
 	./setup.sh
@@ -236,6 +249,7 @@ uninstall:
 	rm -f $(DEST_BIN)/x3d-toggle
 	rm -f $(DEST_BIN)/x3d-daemon
 	rm -f $(DEST_BIN)/x3d-run
+	rm -f $(DEST_BIN)/x3d-gui
 	rm -f $(DEST_BIN)/x3d
 	rm -f $(DEST_SYSUSERS)/x3d_toggle-sysusers.conf
 	rm -f $(DEST_TMPFILES)/x3d_toggle-tmpfiles.conf
@@ -244,13 +258,16 @@ uninstall:
 	rm -f $(DEST_POLKIT)/50-x3d_toggle-service.rules	
 	rm -f $(DEST_UDEV)/99-x3d-toggle.rules
 	rm -f $(DEST_POLKIT)/x3d-toggle.rules
+	rm -f $(DEST_PIXMAPS)/x3d-toggle.jpg
+	rm -f $(DEST_APPS)/x3d-toggle.desktop
 
 	# Local User Cleanup
-	ACTUAL_USER="${SUDO_USER:-$(USER)}"; \
+	ACTUAL_USER="$${SUDO_USER:-$$USER}"; \
 	USER_HOME=$$(getent passwd "$$ACTUAL_USER" | cut -d: -f6); \
 	rm -f "$$USER_HOME/.local/bin/x3d-gui"; \
 	rm -f "$$USER_HOME/.local/share/applications/x3d-toggle.desktop"; \
-	rm -f "$$USER_HOME/.local/share/pixmaps/x3d-toggle.svg"
+	rm -f "$$USER_HOME/.local/share/pixmaps/x3d-toggle.jpg"; \
+	rm -f "$$USER_HOME/Desktop/x3d-toggle.desktop"
 
 	rm -rf $(DEST_LOGS)
 	rm -rf $(DEST_AUDITS)

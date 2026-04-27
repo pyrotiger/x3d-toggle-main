@@ -36,10 +36,14 @@ install_policies() {
         install -m644 "$X3D_TOGGLE/packaging/tmpfiles.conf" "$DESTDIR$SYS_TMPFILES/x3d_toggle-tmpfiles.conf"
     fi
 
-    # 5. Desktop Entry
     if [ -f "$X3D_TOGGLE/packaging/x3d-toggle.desktop" ]; then
         install -dm755 "$DESTDIR$USR_APPS"
         install -m644 "$X3D_TOGGLE/packaging/x3d-toggle.desktop" "$DESTDIR$USR_APPS/x3d-toggle.desktop"
+    fi
+
+    if [ -f "$X3D_TOGGLE/assets/x3d-toggle.jpg" ]; then
+        install -dm755 "$DESTDIR$USR_PIXMAPS"
+        install -m644 "$X3D_TOGGLE/assets/x3d-toggle.jpg" "$DESTDIR$USR_PIXMAPS/x3d-toggle.jpg"
     fi
 
     # Silenced

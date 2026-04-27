@@ -416,23 +416,19 @@ if [ "$X3D_FRAMEWORK" = "1" ] && [ "$(basename -- "$0")" = "framework.sh" ]; the
     case "$1" in
         --sync)
             X3D_EXEC=1 X3D_FRAMEWORK=1 sh "$X3D_TOGGLE/scripts/framework/framework.sh" --gen-all
-            
-            printf_br
-            printf_divider
-            if [ -z "$DESTDIR" ]; then
-                printf_step "Local install detected. Run 'sudo make setup' to configure."
-            else
-                printf_step "Packager install detected. User must configure via setup script post-install."
-            fi
-            printf_divider
-            printf_br
 
-            if [ -f "$X3D_TOGGLE/Makefile" ]; then
-                if confirm "Development Root Detected: Rebuild X3D Toggle binary? [y/N]"; then
-                    make build
-                    journal_write 17
+            if [ -z "$MAKELEVEL" ]; then
+                printf_br
+                printf_divider
+                if [ -z "$DESTDIR" ]; then
+                    printf_step "Local install detected. Run 'sudo make setup' to configure."
+                else
+                    printf_step "Packager install detected. User must configure via setup script post-install."
                 fi
+                printf_divider
+                printf_br
             fi
+
             exit 0
             ;;
         --gen-*)

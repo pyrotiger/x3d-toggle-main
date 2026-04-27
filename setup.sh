@@ -96,7 +96,10 @@ quick_setup() {
         if [ -d "$_d_dir" ] && [ -f "/usr/share/applications/x3d-toggle.desktop" ]; then
             cp "/usr/share/applications/x3d-toggle.desktop" "$_d_dir/"
             chown "$ACTUAL_USER":"$ACTUAL_USER" "$_d_dir/x3d-toggle.desktop"
-            chmod 644 "$_d_dir/x3d-toggle.desktop"
+            chmod 755 "$_d_dir/x3d-toggle.desktop"
+            if command -v gio >/dev/null 2>&1; then
+                sudo -u "$ACTUAL_USER" gio set "$_d_dir/x3d-toggle.desktop" metadata::trusted true 2>/dev/null || true
+            fi
             printf_step "2,${ALRIGHT} Desktop icon created."
         fi
 
@@ -109,6 +112,17 @@ quick_setup() {
         if [ -n "$ACTUAL_USER" ] && [ "$ACTUAL_USER" != "root" ]; then
             usermod -aG x3d-toggle "$ACTUAL_USER"
             printf_step "2,${ALRIGHT} User '$ACTUAL_USER' added to 'x3d-toggle' group."
+        fi
+
+        # Daemon Autostart
+        set_config "DAEMON_STATE" "default"
+        systemctl enable --now x3d-toggle.service
+        sleep 2
+        if systemctl is-active --quiet x3d-toggle.service; then
+            printf_step "2,${ALRIGHT} Daemon activated and autostart enabled."
+        else
+            printf_step "2,${XOUT} Warning: Daemon failed to start. Check 'journalctl -u x3d-toggle'."
+            set_config "DAEMON_STATE" "manual"
         fi
     fi
 
