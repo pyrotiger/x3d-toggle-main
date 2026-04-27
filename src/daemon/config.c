@@ -23,34 +23,14 @@
 static int config_write(int argc, char *argv[], const char *ipc_command,
                         const char *config_key, const char *config_value,
                         const char *user_message) {
-
+  (void)argc; (void)argv;
   int ipc_res = socket_send(ipc_command, NULL, 0);
   if (ipc_res == 0) {
     printf_string("✅ %s (Active daemon synced)", user_message);
     return 0;
   }
 
-  if (geteuid() != 0) {
-    journal_warn(ERR_VIP);
-    pid_t pid = fork();
-    if (pid == 0) {
-      char *new_argv[32]; // Safety limit for CLI args
-      int idx = 0;
-      new_argv[idx++] = (char *)"/usr/bin/pkexec";
-      new_argv[idx++] = (char *)"/usr/bin/x3d-toggle";
-      for (int i = 1; i < argc && idx < 31; i++) {
-        new_argv[idx++] = argv[i];
-      }
-      new_argv[idx] = NULL;
-      char *env[] = {NULL};
-      execve(new_argv[0], new_argv, env);
-      _exit(1);
-    }
-    int status;
-    waitpid(pid, &status, 0);
-    return (status == 0) ? 0 : 1;
-  }
-
+  /* Daemon offline — write config directly (files are group-writable) */
   if (config_key != NULL && config_value != NULL) {
     config_update(config_key, config_value);
   } else if (strncmp(ipc_command, "GAME_ADD ", 9) == 0) {
@@ -379,11 +359,25 @@ int cli_config_update(int argc, char *argv[]) {
   (void)argc; (void)argv;
   printf_string("🛠️  Regenerating system configuration from source templates...");
 
-  char cmd_buf[512];
-  printf_sn(cmd_buf, sizeof(cmd_buf), "X3D_EXEC=1 sh %s/scripts/framework/config.sh --update", USR_LIBS);
-  
-  int res = system(cmd_buf);
-  if (res != 0) {
+  char config_path[256];
+  printf_sn(config_path, sizeof(config_path), "%s/scripts/framework/config.sh", USR_LIBS);
+
+  pid_t pid = fork();
+  if (pid == 0) {
+    char *args[] = {(char *)"/bin/sh", config_path, (char *)"--update", NULL};
+    char *envp[] = {(char *)"X3D_EXEC=1", NULL};
+    execve(args[0], args, envp);
+    _exit(1);
+  }
+
+  int res = ERR_IO;
+  if (pid > 0) {
+    int status;
+    waitpid(pid, &status, 0);
+    res = (WIFEXITED(status) && WEXITSTATUS(status) == 0) ? ERR_SUCCESS : ERR_IO;
+  }
+
+  if (res != ERR_SUCCESS) {
     journal_error(ERR_IO, "config.sh --update");
     return ERR_IO;
   }

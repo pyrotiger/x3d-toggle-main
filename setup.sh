@@ -6,6 +6,7 @@
 ## Usage: sudo make setup
 
 set -e
+export X3D_EXEC=1
 export X3D_SETUP=1
 GUI_INSTALLED=0
 
@@ -32,9 +33,19 @@ fi
 CONF_FILE="${X3D_CONF:-/etc/x3d-toggle.d/settings.conf}"
 
 if [ ! -f "$CONF_FILE" ]; then
-    printf_step "${XOUT} Error: Configuration file not found at $CONF_FILE."
-    printf_step "Please ensure X3D-Toggle is installed via 'make install' or pacman first."
-    exit 1
+    printf_step "${WARN} Configuration file not found at $CONF_FILE."
+    printf_step "Installation not detected. Running installer..."
+    if [ -f "./install.sh" ]; then
+        sh ./install.sh
+        if [ ! -f "$CONF_FILE" ]; then
+             printf_step "${XOUT} Error: Installation failed to create configuration."
+             exit 1
+        fi
+        . "$CONF_FILE"
+    else
+        printf_step "${XOUT} Error: ./install.sh not found. Please run 'make install'."
+        exit 1
+    fi
 fi
 
 . "$CONF_FILE"

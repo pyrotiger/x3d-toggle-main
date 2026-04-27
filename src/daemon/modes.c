@@ -138,7 +138,6 @@ int cli_mode_apply(int mode) {
 }
 
 static int ccd_change(const char *mode) {
-  int hw_res = ERR_SUCCESS;
   char display_mode[BUFF_DISPLAY];
   const char *status_text = "profile";
 
@@ -155,7 +154,8 @@ static int ccd_change(const char *mode) {
   }
   display_mode[sizeof(display_mode) - 1] = '\0';
 
-  int ipc_res = ERR_SUCCESS;
+  /* Try IPC first — daemon handles sysfs, scheduler, and affinity */
+  int ipc_res = ERR_IPC;
   if (strcmp(mode, "cache") == 0 || strcmp(mode, "frequency") == 0 ||
       strcmp(mode, "dual") == 0 || strcmp(mode, "swap") == 0) {
     socket_send("SET_DAEMON manual", NULL, 0);
@@ -164,19 +164,23 @@ static int ccd_change(const char *mode) {
     ipc_res = socket_send(cmd, NULL, 0);
   }
 
+  if (ipc_res == ERR_SUCCESS) {
+    char path[256] = "unknown";
+    mode_path(path, sizeof(path));
+    printf_step("${ALRIGHT} ${COLOR_CYAN}%s${COLOR_RESET} %s applied via "
+                "${COLOR_CYAN}%s",
+                display_mode, status_text, path);
+    return ERR_SUCCESS;
+  }
+
+  /* Daemon offline — fall through to direct sysfs write */
+  int hw_res = ERR_SUCCESS;
   if (strcmp(mode, "dual") == 0) {
     hw_res = cli_set_dual();
-    cli_mode_apply(PART_DUAL);
   } else if (strcmp(mode, "swap") == 0) {
     hw_res = cli_set_swap();
-    cli_mode_apply(PART_FREQ);
   } else {
     hw_res = cli_set_mode(mode);
-    if (strcmp(mode, "cache") == 0) {
-      cli_mode_apply(PART_CACHE);
-    } else if (strcmp(mode, "frequency") == 0) {
-      cli_mode_apply(PART_FREQ);
-    }
   }
 
   if (hw_res != ERR_SUCCESS) {
@@ -186,17 +190,10 @@ static int ccd_change(const char *mode) {
 
   char path[256] = "unknown";
   mode_path(path, sizeof(path));
-
-  if (ipc_res != ERR_SUCCESS) {
-    printf_step(
-        "${ALRIGHT} ${COLOR_CYAN}%s${COLOR_RESET} %s applied via "
-        "${COLOR_CYAN}%s${COLOR_RESET} - ${COLOR_YELLOW}IPC socket offline",
-        display_mode, status_text, path);
-  } else {
-    printf_step("${ALRIGHT} ${COLOR_CYAN}%s${COLOR_RESET} %s applied via "
-                "${COLOR_CYAN}%s",
-                display_mode, status_text, path);
-  }
+  printf_step(
+      "${ALRIGHT} ${COLOR_CYAN}%s${COLOR_RESET} %s applied via "
+      "${COLOR_CYAN}%s${COLOR_RESET} - ${COLOR_YELLOW}IPC socket offline",
+      display_mode, status_text, path);
 
   return ERR_SUCCESS;
 }
@@ -231,10 +228,25 @@ int cli_mode_auto(int argc, char *argv[]) {
   printf_step("${RELOAD} Initiating HARD RESET: Restoring CPPC defaults and "
               "purging session...");
 
-  system("X3D_EXEC=1 sh /usr/lib/x3d-toggle/scripts/tools/reset.sh");
+  /* Reset via fork/execve (not system()) */
+  pid_t pid = fork();
+  if (pid == 0) {
+    char *args[] = {(char *)"/bin/sh",
+                    (char *)"/usr/lib/x3d-toggle/scripts/tools/reset.sh",
+                    NULL};
+    char *envp[] = {(char *)"X3D_EXEC=1", NULL};
+    execve(args[0], args, envp);
+    _exit(EXIT_FAILURE);
+  } else if (pid > 0) {
+    int status;
+    (void)waitpid(pid, &status, 0);
+  }
 
-  unit_disable();
-  unit_stop();
+  /* Try graceful IPC shutdown first, fall back to systemctl */
+  if (socket_send("DAEMON_DISABLE", NULL, 0) != ERR_SUCCESS) {
+    unit_disable();
+    unit_stop();
+  }
 
   printf_step("${ALRIGHT} ${COLOR_CYAN}CPPC NATIVE ${COLOR_RESET}control "
               "restored. Service disabled.");
@@ -247,13 +259,15 @@ int cli_mode_reset(int argc, char *argv[]) {
   printf_step(
       "${RELOAD} Initiating Hardware Re-probe: Restoring native heuristics...");
 
-  int res = ccd_change("reset");
-
-  if (unit_stop() == 0) {
+  /* Try IPC first — daemon handles re-probe internally */
+  if (socket_send("SET_MODE reset", NULL, 0) == ERR_SUCCESS) {
     printf_step(
-        "${PAUSE} Autonomous service ${COLOR_CYAN}STOPPED${COLOR_RESET}.");
+        "${ALRIGHT} Hardware re-probe complete via daemon IPC.");
+    return ERR_SUCCESS;
   }
 
+  /* Daemon offline — direct sysfs fallback */
+  int res = ccd_change("reset");
   return res;
 }
 

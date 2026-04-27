@@ -238,6 +238,9 @@ clean:
 uninstall:
 	-systemctl stop x3d-toggle.service
 	-killall -q -9 x3d-daemon
+	-killall -q -9 x3d-gui
+	-killall -q -9 bin/x3d-gui
+	-killall -q -9 /usr/bin/x3d-gui
 
 	rm -f $(DEST_RUN)/x3d-toggle.ipc
 	rm -f $(DEST_RUN)/x3d-toggle.pid
@@ -277,6 +280,7 @@ uninstall:
 	rm -rf $(DEST_VAR)/lib/x3d-toggle
 
 	rm -rf bin/* build/* bin/.[!.]* build/.[!.]*
+	rm -rf etc/x3d-toggle.d
 
 	-udevadm control --reload-rules && udevadm trigger
 	-systemctl daemon-reload

@@ -21,6 +21,8 @@ static void config_send(const char *key, const char *value);
 static GtkWidget *lbl_status_dump = NULL;
 static GtkEditable *g_cfg_server_ip = NULL;
 static GtkEditable *g_cfg_server_port = NULL;
+static GtkSpinButton *g_cfg_journal_keep = NULL;
+static GtkDropDown *g_cfg_journal_max_mb = NULL;
 
 /* Dev mode nav rows (hidden by default) */
 static GtkWidget *row_developer = NULL;
@@ -35,6 +37,8 @@ static GtkWidget *mode_btns[5]; /* Cache, Frequency, Dual, Default, Reset */
 
 /* ── Dashboard Polling ────────────────────────────────────────── */
 
+static int daemon_retry_cooldown = 0;
+
 static gboolean update_dashboard_cb(gpointer user_data) {
   (void)user_data;
   if (!lbl_status_dump)
@@ -43,9 +47,22 @@ static gboolean update_dashboard_cb(gpointer user_data) {
   char info[BUFF_INFO] = {0};
   if (socket_send("DAEMON_INFO", info, sizeof(info)) != 0) {
     gtk_label_set_label(GTK_LABEL(lbl_status_dump),
-                        "Daemon offline or unreachable.");
+                        "Daemon offline — attempting restart...");
+
+    /* Auto-restart guardrail: try to revive daemon, with cooldown */
+    if (daemon_retry_cooldown <= 0) {
+      daemon_retry_cooldown = 10; /* wait 10 polls before retrying */
+      char *argv[] = {(char *)"/usr/bin/systemctl", (char *)"start",
+                      (char *)"x3d-toggle.service", NULL};
+      g_spawn_async(NULL, argv, NULL,
+                    G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL,
+                    NULL, NULL, NULL, NULL);
+    } else {
+      daemon_retry_cooldown--;
+    }
     return G_SOURCE_CONTINUE;
   }
+  daemon_retry_cooldown = 0;
 
   char display[BUFF_LINE * 2];
   char state_str[BUFF_STATE] = "Unknown";
@@ -80,48 +97,82 @@ static gboolean update_dashboard_cb(gpointer user_data) {
   return G_SOURCE_CONTINUE;
 }
 
-/* ── Action Button Handler ────────────────────────────────────── */
+/* ── Spawn Helper ─────────────────────────────────────────────── */
 
-static void on_action_clicked(GtkButton *btn, gpointer user_data) {
-  (void)btn;
-  const char *cmd = (const char *)user_data;
-  char sys_cmd[BUFF_LINE];
-
-  printf_sn(sys_cmd, sizeof(sys_cmd), "x3d-toggle %s", cmd);
-  system(sys_cmd);
+static void gui_spawn(char **args, char **env) {
+  gchar **new_env = g_get_environ();
+  if (env) {
+    for (int i = 0; env[i] != NULL; i++) {
+      char *eq = strchr(env[i], '=');
+      if (eq) {
+        gchar *key = g_strndup(env[i], eq - env[i]);
+        new_env = g_environ_setenv(new_env, key, eq + 1, TRUE);
+        g_free(key);
+      }
+    }
+  }
+  g_spawn_async(NULL, args, new_env,
+                G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL | G_SPAWN_SEARCH_PATH,
+                NULL, NULL, NULL, NULL);
+  g_strfreev(new_env);
 }
 
 /* ── Journal Callbacks ────────────────────────────────────────── */
 
+static gboolean reset_btn_lbl(gpointer data) {
+    GtkWidget **w = (GtkWidget **)data;
+    gtk_button_set_label(GTK_BUTTON(w[0]), (const char *)w[1]);
+    gtk_widget_set_sensitive(w[0], TRUE);
+    g_free(w[1]);
+    g_free(w);
+    return G_SOURCE_REMOVE;
+}
+
+static void btn_feedback(GtkButton *btn) {
+    const char *orig = gtk_button_get_label(btn);
+    gtk_button_set_label(btn, "Done!");
+    gtk_widget_set_sensitive(GTK_WIDGET(btn), FALSE);
+    GtkWidget **w = g_new(GtkWidget *, 2);
+    w[0] = GTK_WIDGET(btn);
+    w[1] = (GtkWidget *)g_strdup(orig);
+    g_timeout_add(1500, reset_btn_lbl, w);
+}
+
 static void on_btn_launch_debug_clicked(GtkButton *btn, gpointer data) {
     (void)btn; (void)data;
-    /* Use gio open to launch script in system default handler (Terminal/Editor) */
-    system("X3D_EXEC=1 gio open /usr/lib/x3d-toggle/scripts/tools/debug.sh &");
+    char *args[] = {(char *)"/bin/sh", (char *)"-c",
+                    (char *)"kgx -e '/usr/lib/x3d-toggle/scripts/tools/debug.sh' || gnome-terminal -- /usr/lib/x3d-toggle/scripts/tools/debug.sh || konsole -e /usr/lib/x3d-toggle/scripts/tools/debug.sh || xterm -e /usr/lib/x3d-toggle/scripts/tools/debug.sh", NULL};
+    char *env[] = {(char *)"X3D_EXEC=1", NULL};
+    gui_spawn(args, env);
 }
 
 static void on_btn_analyze_coredump_clicked(GtkButton *btn, gpointer data) {
     (void)btn; (void)data;
-    system("X3D_EXEC=1 gio open /usr/lib/x3d-toggle/scripts/tools/coredump.sh &");
+    char *args[] = {(char *)"/bin/sh", (char *)"-c",
+                    (char *)"kgx -e '/usr/lib/x3d-toggle/scripts/tools/coredump.sh' || gnome-terminal -- /usr/lib/x3d-toggle/scripts/tools/coredump.sh || konsole -e /usr/lib/x3d-toggle/scripts/tools/coredump.sh || xterm -e /usr/lib/x3d-toggle/scripts/tools/coredump.sh", NULL};
+    char *env[] = {(char *)"X3D_EXEC=1", NULL};
+    gui_spawn(args, env);
 }
 
 static void on_btn_archive_journal_clicked(GtkButton *btn, gpointer data) {
     (void)btn; (void)data;
-    system("X3D_EXEC=1 /usr/lib/x3d-toggle/scripts/tools/archive.sh &");
+    char *args[] = {(char *)"/bin/sh",
+                    (char *)"/usr/lib/x3d-toggle/scripts/tools/archive.sh", NULL};
+    char *env[] = {(char *)"X3D_EXEC=1", NULL};
+    gui_spawn(args, env);
+    btn_feedback(btn);
 }
 
 static void on_btn_rotate_journal_clicked(GtkButton *btn, gpointer data) {
     (void)btn; (void)data;
-    system("X3D_EXEC=1 /usr/lib/x3d-toggle/scripts/tools/rotate.sh --all &");
+    char *args[] = {(char *)"/bin/sh",
+                    (char *)"/usr/lib/x3d-toggle/scripts/tools/rotate.sh",
+                    (char *)"--all", NULL};
+    char *env[] = {(char *)"X3D_EXEC=1", NULL};
+    gui_spawn(args, env);
+    btn_feedback(btn);
 }
 
-static void on_cfg_spin_changed(GObject *obj, GParamSpec *pspec, gpointer user_data) {
-    (void)pspec;
-    const char *key = (const char *)user_data;
-    int val = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(obj));
-    char val_str[16];
-    printf_sn(val_str, sizeof(val_str), "%d", val);
-    config_send(key, val_str);
-}
 
 /* ── Mode Selection Callbacks ─────────────────────────────────── */
 
@@ -145,23 +196,43 @@ static void on_mode_card_clicked(GtkButton *btn, gpointer data) {
 
 static void on_mode_apply_clicked(GtkButton *btn, gpointer data) {
     (void)btn; (void)data;
-    
-    /* 1. Execute Hardware Mode if selected */
+
+    /* 1. Execute Hardware Mode via IPC */
     if (g_selected_mode) {
-        char sys_cmd[BUFF_LINE];
-        printf_sn(sys_cmd, sizeof(sys_cmd), "x3d-toggle %s", g_selected_mode);
-        system(sys_cmd);
+        char cmd[64];
+        if (strcmp(g_selected_mode, "reset") == 0) {
+            /* Reset: clear override and let daemon re-probe */
+            socket_send("SET_MODE reset", NULL, 0);
+        } else if (strcmp(g_selected_mode, "default") == 0) {
+            /* Default: restore daemon defaults */
+            socket_send("SET_DAEMON default", NULL, 0);
+            socket_send("CONFIG_SYNC", NULL, 0);
+        } else {
+            /* cache / frequency / dual: set mode + suspend daemon */
+            printf_sn(cmd, sizeof(cmd), "SET_MODE %s", g_selected_mode);
+            socket_send("SET_DAEMON manual", NULL, 0);
+            socket_send(cmd, NULL, 0);
+        }
     }
 
-    /* 2. Execute Lifecycle Action if selected */
+    /* 2. Execute Lifecycle Action via IPC */
     if (g_lifecycle_dropdown) {
         guint idx = gtk_drop_down_get_selected(g_lifecycle_dropdown);
-        /* 0 is "None", actions start from 1: wake, sleep, stop, enable, start */
-        const char *actions[] = {NULL, "wake", "sleep", "stop", "enable", "start"};
-        if (idx > 0 && idx < 6) {
-            char sys_cmd[BUFF_LINE];
-            printf_sn(sys_cmd, sizeof(sys_cmd), "x3d-toggle %s", actions[idx]);
-            system(sys_cmd);
+        /* 0=None, 1=Wake, 2=Sleep, 3=Stop, 4=Enable, 5=Autostart */
+        switch (idx) {
+        case 1: /* Wake */
+            socket_send("CONFIG_SYNC", NULL, 0);
+            socket_send("SET_DAEMON default", NULL, 0);
+            socket_send("SET_MODE frequency", NULL, 0);
+            break;
+        case 2: /* Sleep */
+            socket_send("SET_DAEMON manual", NULL, 0);
+            break;
+        case 3: /* Stop */
+            socket_send("DAEMON_DISABLE", NULL, 0);
+            break;
+        default:
+            break;
         }
     }
 
@@ -369,7 +440,7 @@ static CfgDropData dd_valgrind_m = {"LINT_VALGRIND_MODE", valgrind_mode_vals,
                                     0};
 static CfgDropData dd_valgrind_k = {"LINT_VALGRIND_KINDS", valgrind_kinds_vals,
                                     0};
-static CfgDropData dd_journal_max = {"JOURNAL_MAX_MB", journal_max_mb_vals, 0};
+
 
 static guint find_dropdown_idx(const char **values, int count,
                                const char *target) {
@@ -377,6 +448,36 @@ static guint find_dropdown_idx(const char **values, int count,
     if (strcmp(values[i], target) == 0)
       return (guint)i;
   return 0;
+}
+
+static void on_rotation_apply_clicked(GtkButton *btn, gpointer data) {
+    (void)btn; (void)data;
+    if (g_cfg_journal_keep) {
+        int val = (int)gtk_spin_button_get_value(g_cfg_journal_keep);
+        char val_str[16];
+        printf_sn(val_str, sizeof(val_str), "%d", val);
+        config_send("JOURNAL_KEEP", val_str);
+    }
+    if (g_cfg_journal_max_mb) {
+        guint idx = gtk_drop_down_get_selected(g_cfg_journal_max_mb);
+        if (idx < 5) {
+            char val_str[16];
+            printf_sn(val_str, sizeof(val_str), "%s", journal_max_mb_vals[idx]);
+            config_send("JOURNAL_MAX_MB", val_str);
+        }
+    }
+}
+
+static void on_rotation_cancel_clicked(GtkButton *btn, gpointer data) {
+    (void)btn; (void)data;
+    if (g_cfg_journal_keep) {
+        const char *val = config_get("JOURNAL_KEEP");
+        if (val && val[0]) gtk_spin_button_set_value(g_cfg_journal_keep, atoi(val));
+    }
+    if (g_cfg_journal_max_mb) {
+        const char *val = config_get("JOURNAL_MAX_MB");
+        gtk_drop_down_set_selected(g_cfg_journal_max_mb, find_dropdown_idx(journal_max_mb_vals, 5, val));
+    }
 }
 
 static void bind_config(GtkBuilder *builder) {
@@ -549,18 +650,24 @@ static void bind_config(GtkBuilder *builder) {
   /* SpinButton: JOURNAL_KEEP */
   w = gtk_builder_get_object(builder, "cfg_journal_keep");
   if (w) {
+      g_cfg_journal_keep = GTK_SPIN_BUTTON(w);
       val = config_get("JOURNAL_KEEP");
-      if (val && val[0]) gtk_spin_button_set_value(GTK_SPIN_BUTTON(w), atoi(val));
-      g_signal_connect(w, "notify::value", G_CALLBACK(on_cfg_spin_changed), (gpointer)"JOURNAL_KEEP");
+      if (val && val[0]) gtk_spin_button_set_value(g_cfg_journal_keep, atoi(val));
   }
 
   /* Dropdown: JOURNAL_MAX_MB */
   w = gtk_builder_get_object(builder, "cfg_journal_max_mb");
   if (w) {
+      g_cfg_journal_max_mb = GTK_DROP_DOWN(w);
       val = config_get("JOURNAL_MAX_MB");
-      gtk_drop_down_set_selected(GTK_DROP_DOWN(w), find_dropdown_idx(journal_max_mb_vals, 5, val));
-      g_signal_connect(w, "notify::selected", G_CALLBACK(on_cfg_dropdown_changed), &dd_journal_max);
+      gtk_drop_down_set_selected(g_cfg_journal_max_mb, find_dropdown_idx(journal_max_mb_vals, 5, val));
   }
+
+  /* Rotation Settings Apply/Cancel */
+  w = gtk_builder_get_object(builder, "btn_rotation_apply");
+  if (w) g_signal_connect(w, "clicked", G_CALLBACK(on_rotation_apply_clicked), NULL);
+  w = gtk_builder_get_object(builder, "btn_rotation_cancel");
+  if (w) g_signal_connect(w, "clicked", G_CALLBACK(on_rotation_cancel_clicked), NULL);
 
   /* Entry: SERVER_ADDRESS */
   w = gtk_builder_get_object(builder, "cfg_server_ip");
@@ -642,15 +749,6 @@ static void on_app_activate(GtkApplication *app, gpointer user_data) {
   (void)user_data;
   GObject *w;
 
-  /* Silence libadwaita dark theme warnings and enforce dark mode */
-  AdwStyleManager *style_manager = adw_style_manager_get_default();
-  adw_style_manager_set_color_scheme(style_manager,
-                                     ADW_COLOR_SCHEME_FORCE_DARK);
-
-  /* Ensure GtkSettings doesn't conflict with libadwaita */
-  g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme",
-               FALSE, NULL);
-
   /* Load CSS */
   GtkCssProvider *provider = gtk_css_provider_new();
   gtk_css_provider_load_from_resource(provider,
@@ -707,10 +805,6 @@ static void on_app_activate(GtkApplication *app, gpointer user_data) {
     g_signal_emit_by_name(sidebar, "row-selected", first_row);
   }
 
-  /* Bind Actions automatically by ID (action_x3dtoggle_<cmd>) */
-  const char *actions[] = {"auto",   "wake",      "sleep", "stop",
-                           "enable", "start",     NULL};
-
   /* Bind Mode Selection */
   const char *mode_ids[] = {"cache", "frequency", "dual", "default", "reset"};
   for (int i = 0; i < 5; i++) {
@@ -732,17 +826,6 @@ static void on_app_activate(GtkApplication *app, gpointer user_data) {
   /* Bind Lifecycle Dropdown */
   g_lifecycle_dropdown = GTK_DROP_DOWN(gtk_builder_get_object(builder, "lifecycle_dropdown"));
 
-  for (int i = 0; actions[i] != NULL; i++) {
-    char btn_id[64];
-    printf_sn(btn_id, sizeof(btn_id), "action_x3dtoggle_%s", actions[i]);
-    GObject *obj = gtk_builder_get_object(builder, btn_id);
-    if (obj) {
-      char *cmd_copy = g_strdup(actions[i]);
-      g_signal_connect_data(obj, "clicked", G_CALLBACK(on_action_clicked),
-                            cmd_copy, (GClosureNotify)g_free, 0);
-    }
-  }
-
   /* Bind config widgets */
   bind_config(builder);
 
@@ -755,6 +838,10 @@ static void on_app_activate(GtkApplication *app, gpointer user_data) {
 }
 
 int main(int argc, char **argv) {
+  adw_init();
+  AdwStyleManager *style_manager = adw_style_manager_get_default();
+  adw_style_manager_set_color_scheme(style_manager, ADW_COLOR_SCHEME_FORCE_DARK);
+
   g_set_prgname("x3d-toggle");
   AdwApplication *app =
       adw_application_new("org.x3d.toggle", G_APPLICATION_DEFAULT_FLAGS);

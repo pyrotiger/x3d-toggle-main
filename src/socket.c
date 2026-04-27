@@ -163,7 +163,18 @@ void socket_handle(int server_fd) {
         scat(cfg.daemon_state, val, sizeof(cfg.daemon_state));
 
         if (strcmp(val, "auto") == 0) {
-          system("X3D_EXEC=1 sh /usr/lib/x3d-toggle/scripts/tools/reset.sh");
+          pid_t rpid = fork();
+          if (rpid == 0) {
+            char *args[] = {(char *)"/bin/sh",
+                            (char *)"/usr/lib/x3d-toggle/scripts/tools/reset.sh",
+                            NULL};
+            char *envp[] = {(char *)"X3D_EXEC=1", NULL};
+            execve(args[0], args, envp);
+            _exit(EXIT_FAILURE);
+          } else if (rpid > 0) {
+            int rst;
+            (void)waitpid(rpid, &rst, 0);
+          }
         }
 
         if (active_override != 0 && (strcmp(val, "auto") == 0 || strcmp(val, "default") == 0))

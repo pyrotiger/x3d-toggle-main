@@ -19,21 +19,21 @@ User=x3d-toggle
 LimitMEMLOCK=infinity
 LimitCORE=infinity
 
-AmbientCapabilities=CAP_SYS_ADMIN CAP_PERFMON CAP_BPF CAP_SYS_NICE CAP_CHOWN CAP_DAC_OVERRIDE
-CapabilityBoundingSet=CAP_SYS_ADMIN CAP_PERFMON CAP_BPF CAP_SYS_NICE CAP_CHOWN CAP_DAC_OVERRIDE
+AmbientCapabilities=CAP_SYS_ADMIN CAP_PERFMON CAP_BPF CAP_SYS_NICE CAP_DAC_READ_SEARCH
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_PERFMON CAP_BPF CAP_SYS_NICE CAP_DAC_READ_SEARCH
 
-ProtectSystem=off
-ProtectHome=no
-PrivateTmp=no
-NoNewPrivileges=no
-ProtectKernelModules=no
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectKernelModules=yes
 ProtectControlGroups=no
 ProtectKernelTunables=no
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictRealtime=no
 
 SystemCallArchitectures=native
-RestrictSUIDSGID=no
+RestrictSUIDSGID=yes
 
 ReadWritePaths=/sys/devices/system/cpu
 ReadWritePaths=/sys/fs/bpf
@@ -41,6 +41,9 @@ ReadWritePaths=/sys/fs/cgroup
 ReadWritePaths=/sys/devices/platform
 ReadWritePaths=/sys/bus/platform/drivers/amd_x3d_vcache
 ReadWritePaths=/run/x3d-toggle
+ReadWritePaths=/etc/x3d-toggle.d
+ReadWritePaths=/var/log/x3d-toggle
+ReadWritePaths=/proc/sys/kernel
 
 ExecStopPost=/usr/bin/x3d-toggle journal-dump ; /usr/bin/x3d-toggle journal-archive
 
@@ -48,5 +51,6 @@ ExecStopPost=/usr/bin/x3d-toggle journal-dump ; /usr/bin/x3d-toggle journal-arch
 WantedBy=multi-user.target
 
 ## Daemon Permissions Elevation for the X3D Toggle Project: `x3d-toggle.service`
-## Elevation of permissions for the daemon backend providing passwordless environment
+## Least Privilege: Ambient capabilities granted at exec, NoNewPrivileges enforced.
+## All paths pre-provisioned by tmpfiles.conf with correct group ownership.
 ## end of file

@@ -121,11 +121,14 @@ int cppc_prefcore(int enable) {
 }
 
 int cppc_restore(void) {
-  int pid = fork();
+  pid_t pid = fork();
   if (pid < 0) return ERR_IO;
   if (pid == 0) {
-    char *args[] = {(char *)"/usr/lib/x3d-toggle/scripts/tools/reset.sh", NULL};
-    execve(args[0], args, environ);
+    char *args[] = {(char *)"/bin/sh",
+                    (char *)"/usr/lib/x3d-toggle/scripts/tools/reset.sh",
+                    NULL};
+    char *envp[] = {(char *)"X3D_EXEC=1", NULL};
+    execve(args[0], args, envp);
     _exit(EXIT_FAILURE);
   }
 

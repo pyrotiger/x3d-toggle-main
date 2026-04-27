@@ -49,7 +49,7 @@ printf_step "${PACKAGE} Deploying files to FHS standard directories..."
 make install DESTDIR=""
 printf_step "2,${ALRIGHT} Files successfully placed in /usr/bin, /usr/lib, and /etc."
 
-if [ -x "./setup.sh" ]; then
+if [ -x "./setup.sh" ] && [ "$X3D_SETUP" != "1" ]; then
     printf_br
     printf_step_no_nl "${QUERY} Would you like to run the configuration wizard now? [Y/n] "
     read -r setup
