@@ -173,10 +173,20 @@ printf_step "Press ${LEFT}  for DEV-MINIMAL SUITE CONFIGURATION (Minimal Default
 printf_step "Press ${COLOR_RED}[ENTER]${COLOR_RESET} for INTERACTIVE SETUP AND CONFIGURATION"
 printf_br
 
-_old_stty=$(stty -g)
-stty -icanon -echo min 1 time 30
-_key=$(dd bs=3 count=1 2>/dev/null)
-stty "$_old_stty"
+if [ -n "$X3D_SETUP_MODE" ]; then
+    _key="CI_AUTO"
+    case "$X3D_SETUP_MODE" in
+        full) _key="$SEQ_UP" ;;
+        standard) _key="$SEQ_RIGHT" ;;
+        minimal) _key="$SEQ_DOWN" ;;
+        dev) _key="$SEQ_LEFT" ;;
+    esac
+else
+    _old_stty=$(stty -g)
+    stty -icanon -echo min 1 time 30
+    _key=$(dd bs=3 count=1 2>/dev/null)
+    stty "$_old_stty"
+fi
 
 if [ "$_key" = "$SEQ_UP" ]; then quick_setup "y"
 elif [ "$_key" = "$SEQ_DOWN" ]; then quick_setup "n"
