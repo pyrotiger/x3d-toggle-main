@@ -36,7 +36,7 @@ fi
 
 if [ "$(id -u)" -ne 0 ]; then
     printf_step "${XOUT} Error: setup.sh must be run with sudo/root privileges."
-    printf_step "2,Try: sudo make setup"
+    printf_step "Try: sudo make setup"
     exit 1
 fi
 
