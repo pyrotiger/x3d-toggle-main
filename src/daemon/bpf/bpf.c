@@ -45,25 +45,13 @@ struct {
 
 SEC("tp/sched/sched_process_exec")
 int handle_exec(struct trace_event_raw_sched_process_exec *ctx) {
-    char comm[16];
-    __u32 key = 0;
-    __u32 active = 1;
-    __u32 *val;
-
-    bpf_get_current_comm(&comm, sizeof(comm));
-
-    val = bpf_map_lookup_elem(&game_map, &comm);
-    if (val) {
-        bpf_map_update_elem(&state_map, &key, &active, BPF_ANY);
-
-        struct process_event *e;
-        e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
-        if (e) {
-            e->pid = bpf_get_current_pid_tgid() >> 32;
-            bpf_get_current_comm(&e->comm, sizeof(e->comm));
-            e->is_exit = 0;
-            bpf_ringbuf_submit(e, 0);
-        }
+    struct process_event *e;
+    e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
+    if (e) {
+        e->pid = bpf_get_current_pid_tgid() >> 32;
+        bpf_get_current_comm(&e->comm, sizeof(e->comm));
+        e->is_exit = 0;
+        bpf_ringbuf_submit(e, 0);
     }
 
     return 0;
@@ -71,21 +59,13 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx) {
 
 SEC("tp/sched/sched_process_exit")
 int handle_exit(struct trace_event_raw_sched_process_template *ctx) {
-    char comm[16];
-    __u32 *val;
-
-    bpf_get_current_comm(&comm, sizeof(comm));
-
-    val = bpf_map_lookup_elem(&game_map, &comm);
-    if (val) {
-        struct process_event *e;
-        e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
-        if (e) {
-            e->pid = bpf_get_current_pid_tgid() >> 32;
-            bpf_get_current_comm(&e->comm, sizeof(e->comm));
-            e->is_exit = 1;
-            bpf_ringbuf_submit(e, 0);
-        }
+    struct process_event *e;
+    e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
+    if (e) {
+        e->pid = bpf_get_current_pid_tgid() >> 32;
+        bpf_get_current_comm(&e->comm, sizeof(e->comm));
+        e->is_exit = 1;
+        bpf_ringbuf_submit(e, 0);
     }
     
     return 0;

@@ -21,7 +21,7 @@ extern void bpf_poll(int timeout_ms);
 extern gamelist gl;
 
 static bool scan_pid(const char *pid_str) {
-    char path[256], buf[1024];
+    char path[256], buf[16384];
 
     if (gl.count > 0) {
         printf_sn(path, sizeof(path), "/proc/%s/cmdline", pid_str);
@@ -40,8 +40,8 @@ static bool scan_pid(const char *pid_str) {
     printf_sn(path, sizeof(path), "/proc/%s/maps", pid_str);
     int fd = open(path, O_RDONLY);
     if (fd >= 0) {
-        ssize_t n = read(fd, buf, sizeof(buf) - 1);
-        if (n > 0) {
+        ssize_t n;
+        while ((n = read(fd, buf, sizeof(buf) - 1)) > 0) {
             buf[n] = '\0';
             if (strstr(buf, "libgamemodeauto.so")) {
                 close(fd);
@@ -93,10 +93,9 @@ void polling_run(CPUStats *p_stat, CPUStats *c_stat, char *current, char *target
 
       if (bpf_active) {
         bpf_poll(0);
-        eg = bpf_game();
-      } else {
-        pg = detect_game();
       }
+      eg = bpf_game();
+      pg = detect_game();
 
       if (active_override == 1)
         scat(target, "cache", 32);

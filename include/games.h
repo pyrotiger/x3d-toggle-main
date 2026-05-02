@@ -5,16 +5,16 @@
 #ifndef GAMES_H
 #define GAMES_H
 
-#define GAMES_MAX     512
+#define GAMES_MAX 512
 enum { GAME_NAME = 64 };
 
-#define GAMES_SYS     "/etc/x3d-toggle.d"
-#define GAMES_USR     "/etc/x3d-toggle.d"
-#define GAMES_DEV     "./x3d-devgames.list"
+#define GAMES_SYS "/etc/x3d-toggle.d/games.conf"
+#define GAMES_USR "/etc/x3d-toggle.d/daemon.conf"
+#define GAMES_DEV "./x3d-devgames.list"
 
 typedef struct {
-    char names[GAMES_MAX][GAME_NAME];
-    int  count;
+  char names[GAMES_MAX][GAME_NAME];
+  int count;
 } gamelist;
 
 int games_load(gamelist *gl);

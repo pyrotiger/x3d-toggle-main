@@ -10,7 +10,7 @@ CFLAGS        		?= -Wall -O2 -Wextra -D_GNU_SOURCE -fno-builtin -nostdlib -fno-s
 USER_CFLAGS          = -DBPF_NO_PRESERVE_ACCESS_INDEX
 LDFLAGS        		 = 
 INCLUDES             = -Iinclude -Ibuild -Isrc/daemon -Isrc/cli -Isrc/daemon/polling -Isrc/daemon/bpf -DUSR_LIBS=\"$(USR_LIBS)\" -DVAR_LOGS=\"$(VAR_LOGS)\" -DVAR_AUDITS=\"$(VAR_AUDITS)\" -DVAR_DUMPS=\"$(VAR_DUMPS)\" -DDIR_BIN=\"$(DIR_BIN)\" -DDIR_RUN=\"$(DIR_RUN)\" 
-LIBS          		 = -lbpf
+LIBS          		 = -lbpf -lsystemd -lpthread -lrt -pthread -lc
 CLI           		 = -DCLI_BUILD
 BACKEND         	 = -DBACKEND
 
