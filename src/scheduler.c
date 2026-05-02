@@ -23,6 +23,10 @@ static int sysctl_write(const char *node, const char *value) {
             close(fd);
             return -1;
         }
+        if (bytes_written == 0) {
+            close(fd);
+            return -1;
+        }
         off += (size_t)bytes_written;
     }
 
