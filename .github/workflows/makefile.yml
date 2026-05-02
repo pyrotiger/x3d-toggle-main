@@ -23,7 +23,7 @@ jobs:
         sudo apt-get install -y libbpf-dev libsystemd-dev libgtk-4-dev libadwaita-1-dev clang make pkg-config
 
     - name: Build
-      run: sudo make install
+      run: sudo make purge install
 
     - name: Automated Setup (Full)
       run: |

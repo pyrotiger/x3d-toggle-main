@@ -91,7 +91,7 @@ jobs:
       if: matrix.build-mode == 'manual'
       shell: bash
       run: |
-        sudo make install
+        sudo make purge install
         export X3D_SETUP_MODE=full
         sudo -E ./setup.sh
 
