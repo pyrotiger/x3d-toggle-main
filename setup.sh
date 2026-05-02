@@ -9,6 +9,10 @@ set -e
 export X3D_EXEC=1
 export X3D_SETUP=1
 GUI_INSTALLED=0
+: "${UP:=↑}"
+: "${RIGHT:=→}"
+: "${DOWN:=↓}"
+: "${LEFT:=←}"
 
 if [ -f "./scripts/framework/framework.sh" ]; then
     . "./scripts/framework/framework.sh"
@@ -16,13 +20,18 @@ elif [ -f "/usr/lib/x3d-toggle/scripts/framework/framework.sh" ]; then
     . "/usr/lib/x3d-toggle/scripts/framework/framework.sh"
 else
     echo "⚠️  Warning: framework.sh not found. Proceeding with standard terminal I/O."
-    XOUT="❌"; WARN="⚠️"; ALRIGHT="✔️"; QUERY="❓"; ROCKET="🚀"; GEAR="⚙️"; STOPSIGN="🛑"; INFO="🌐"
+    XOUT="❌"; WARN="⚠️"; ALRIGHT="✔️"; QUERY="❓"; ROCKET="🚀"; GEAR="⚙️"; RELOAD="🔄"; STOPSIGN="🛑"; INFO="🌐"
     printf_step() { echo "  > $*"; }
     printf_step_no_nl() { echo -n "  > $*"; }
     printf_center() { echo "=== $* ==="; }
     printf_br() { echo ""; }
     printf_divider() { echo "----------------------------------------"; }
 fi
+
+: "${SEQ_UP:=$(printf '\033[A')}"
+: "${SEQ_RIGHT:=$(printf '\033[C')}"
+: "${SEQ_DOWN:=$(printf '\033[B')}"
+: "${SEQ_LEFT:=$(printf '\033[D')}"
 
 if [ "$(id -u)" -ne 0 ]; then
     printf_step "2,${XOUT} Error: setup.sh must be run with sudo/root privileges."
@@ -311,7 +320,7 @@ if [ -d "$DESKTOP_DIR" ] && [ -f "/usr/share/applications/x3d-toggle.desktop" ];
             TARGET="$DESKTOP_DIR/x3d-toggle.desktop"
             cp "/usr/share/applications/x3d-toggle.desktop" "$TARGET"
             chown "$ACTUAL_USER:$ACTUAL_GROUP" "$TARGET"
-            chmod 0644 "$TARGET"
+            chmod 0755 "$TARGET"
             printf_step "2,${ALRIGHT} Desktop icon created with safe permissions and owned by $ACTUAL_USER."
             ;;
     esac
