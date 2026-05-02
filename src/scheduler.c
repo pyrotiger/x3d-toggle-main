@@ -7,8 +7,8 @@
 
 static int sysctl_write(const char *node, const char *value) {
     char path[128];
-    strcpy(path, PROC_KERNEL);
-    strcat(path, node);
+    int n = snprintf(path, sizeof(path), "%s%s", PROC_KERNEL, node);
+    if (n < 0 || (size_t)n >= sizeof(path)) return -1;
     
     int fd = open(path, O_WRONLY);
     if (fd < 0) return -1;
