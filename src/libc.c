@@ -225,7 +225,7 @@ int system(const char *cmd) {
     return 1;
   pid_t pid = fork();
   if (pid == 0) {
-    char *args[] = {(char *)"/usr/bin/sh", (char *)"-c", (char *)cmd,
+    char *args[] = {(char *)"/bin/sh", (char *)"-c", (char *)cmd,
                     (char *)0};
     execve(args[0], args, environ);
     _exit(127);
