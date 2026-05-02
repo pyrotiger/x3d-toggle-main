@@ -311,7 +311,7 @@ if [ -d "$DESKTOP_DIR" ] && [ -f "/usr/share/applications/x3d-toggle.desktop" ];
             TARGET="$DESKTOP_DIR/x3d-toggle.desktop"
             cp "/usr/share/applications/x3d-toggle.desktop" "$TARGET"
             chown "$ACTUAL_USER:$ACTUAL_GROUP" "$TARGET"
-            chmod 0644 "$TARGET"
+            chmod 0755 "$TARGET"
             printf_step "2,${ALRIGHT} Desktop icon created with safe permissions and owned by $ACTUAL_USER."
             ;;
     esac
