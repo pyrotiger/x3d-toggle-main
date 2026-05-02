@@ -158,7 +158,7 @@ int game_remove(const char *game) {
             char *nxt;
             int current_section = 0;
             while (ln && *ln && count < 1024) {
-                nxt = strchr(ln, "\n"[0]);
+                nxt = strchr(ln, '\n');
                 if (nxt) *nxt = '\0';
                 printf_sn(lines[count], 256, "%s\n", ln);
 

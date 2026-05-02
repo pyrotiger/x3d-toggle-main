@@ -13,7 +13,7 @@ static void printf_help(void) {
   printf_br();
   printf_center("X3D Toggle - Advanced CLI (IPC Enabled)");
   printf_center("Usage: x3d-toggle [COMMAND|MODE] [ARGS...]");
-  printf_center("   or: x3d -[COMMAND|MODE] [ARGS...]\\n");
+  printf_center("   or: x3d -[COMMAND|MODE] [ARGS...]\n");
   printf_br();
 
   for (int i = 0; cmd_table[i].name != NULL; i++) {
