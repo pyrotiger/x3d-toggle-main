@@ -142,7 +142,12 @@ void socket_handle(int server_fd) {
       char *target_str = buf + 9;
       int ret = ERR_SUCCESS;
       if (strcmp(target_str, "ccd1") == 0) {
-        for (int i = 1; i < TOTAL_CORES; i++) {
+#ifdef CCD1_START
+        const int ccd1_start = CCD1_START;
+#else
+        const int ccd1_start = TOTAL_CORES / 2;
+#endif
+        for (int i = ccd1_start; i < TOTAL_CORES; i++) {
           int r = cli_set_core(i, 0);
           if (r != ERR_SUCCESS && r != ERR_LOST)
             ret = r;
