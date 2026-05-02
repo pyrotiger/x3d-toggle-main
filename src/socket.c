@@ -14,6 +14,9 @@
 #include "modes.h"
 
 #define MAX_IPC_BUFFER_SIZE 512
+#ifndef MAX_CONNECTIONS
+#define MAX_CONNECTIONS 5
+#endif
 
 extern volatile sig_atomic_t active_keep;
 extern volatile int active_override;
@@ -58,7 +61,10 @@ int socket_setup(void) {
   }
 
   /* Grant 0660 permission to allow the x3d-toggle group to communicate */
-  chmod(IPC_PATH, 0660);
+  if (chmod(IPC_PATH, 0660) < 0) {
+    syslog(LOG_ERR, "Failed to set permissions on IPC socket %s: %s", IPC_PATH,
+           strerror(errno));
+  }
 
   syslog(LOG_INFO, "IPC server bound and ready at %s", IPC_PATH);
   return fd;
@@ -133,7 +139,23 @@ void socket_handle(int server_fd) {
       send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
            (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_CPPC ", 9) == 0) {
-      int ret = cppc_perf(atoi(buf + 9));
+      char *val = buf + 9;
+      char *endptr = NULL;
+      long parsed;
+      int ret = ERR_IO;
+
+      errno = 0;
+      parsed = strtol(val, &endptr, 10);
+      if (endptr != val && errno != ERANGE) {
+        while (*endptr == ' ' || *endptr == '\t' || *endptr == '\r' ||
+               *endptr == '\n') {
+          endptr++;
+        }
+        if (*endptr == '\0' && parsed >= INT_MIN && parsed <= INT_MAX) {
+          ret = cppc_perf((int)parsed);
+        }
+      }
+
       send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
            (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_BOOST ", 10) == 0) {
@@ -156,7 +178,15 @@ void socket_handle(int server_fd) {
             ret = r;
         }
       } else {
-        ret = cli_set_core(atoi(target_str), 0);
+        char *endptr = NULL;
+        errno = 0;
+        long core_long = strtol(target_str, &endptr, 10);
+        if (endptr == target_str || *endptr != '\0' || errno == ERANGE ||
+            core_long < INT_MIN || core_long > INT_MAX) {
+          ret = ERR_LOST;
+        } else {
+          ret = cli_set_core((int)core_long, 0);
+        }
       }
       send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
            (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
@@ -166,7 +196,15 @@ void socket_handle(int server_fd) {
       if (strcmp(target_str, "ccd1") == 0 || strcmp(target_str, "all") == 0) {
         ret = cli_set_dual();
       } else {
-        ret = cli_set_core(atoi(target_str), 1);
+        char *endptr = NULL;
+        errno = 0;
+        long core_long = strtol(target_str, &endptr, 10);
+        if (endptr == target_str || *endptr != '\0' || errno == ERANGE ||
+            core_long < INT_MIN || core_long > INT_MAX) {
+          ret = ERR_INVALID_ARGS;
+        } else {
+          ret = cli_set_core((int)core_long, 1);
+        }
       }
       send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
            (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
