@@ -13,6 +13,7 @@ GUI_INSTALLED=0
 : "${RIGHT:=→}"
 : "${DOWN:=↓}"
 : "${LEFT:=←}"
+: "${MIN_REGULAR_UID:=1000}"
 
 if [ -f "./scripts/framework/framework.sh" ]; then
     . "./scripts/framework/framework.sh"
@@ -34,7 +35,7 @@ fi
 : "${SEQ_LEFT:=$(printf '\033[D')}"
 
 if [ "$(id -u)" -ne 0 ]; then
-    printf_step "2,${XOUT} Error: setup.sh must be run with sudo/root privileges."
+    printf_step "${XOUT} Error: setup.sh must be run with sudo/root privileges."
     printf_step "2,Try: sudo make setup"
     exit 1
 fi
@@ -85,7 +86,10 @@ set_config() {
         echo "${_key}=${_val}" >> "$_temp_file"
     fi
     if ! mv -f "$_temp_file" "$CONF_FILE"; then
-        x3d-toggle gui-log "setup.sh failed to write configuration key: $_key" 2>/dev/null || true
+        _err_msg="setup.sh failed to write configuration key: $_key"
+        x3d-toggle gui-log "$_err_msg" 2>/dev/null || true
+        printf '%s\n' "$_err_msg" >&2
+        command -v logger >/dev/null 2>&1 && logger -t x3d-toggle-setup "$_err_msg" || true
         printf_step "${XOUT} Error: Failed to write to $CONF_FILE"
     fi
 }
@@ -153,7 +157,7 @@ quick_setup() {
         if systemctl is-active --quiet x3d-toggle.service; then
             printf_step "2,${ALRIGHT} Daemon activated and autostart enabled."
         else
-            printf_step "2,${XOUT} Warning: Daemon failed to start. Check 'journalctl -u x3d-toggle'."
+            printf_step "2,${WARN} Warning: Daemon failed to start. Check 'journalctl -u x3d-toggle'."
             set_config "DAEMON_STATE" "manual"
         fi
     fi
@@ -192,9 +196,11 @@ if [ -n "$X3D_SETUP_MODE" ]; then
     esac
 else
     _old_stty=$(stty -g)
+    trap 'stty "$_old_stty"' EXIT INT TERM HUP
     stty -icanon -echo min 1 time 30
     _key=$(dd bs=3 count=1 2>/dev/null)
     stty "$_old_stty"
+    trap - EXIT INT TERM HUP
 fi
 
 if [ "$_key" = "$SEQ_UP" ]; then quick_setup "y"
@@ -299,7 +305,7 @@ if [ -z "$ACTUAL_USER" ]; then
 fi
 
 if [ -z "$ACTUAL_USER" ]; then
-    ACTUAL_USER="$(awk -F: '($3 >= 1000) && ($1 != "nobody") && ($7 !~ /(nologin|false)$/) { print $1; exit }' /etc/passwd)"
+    ACTUAL_USER="$(awk -F: -v min_uid="$MIN_REGULAR_UID" '($3 >= min_uid) && ($1 != "nobody") && ($7 !~ /(nologin|false)$/) { print $1; exit }' /etc/passwd)"
 fi
 
 if [ -z "$ACTUAL_USER" ] || ! id "$ACTUAL_USER" >/dev/null 2>&1; then
