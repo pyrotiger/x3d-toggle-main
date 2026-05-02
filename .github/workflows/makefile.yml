@@ -17,14 +17,18 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: configure
-      run: ./configure
-
     - name: Install dependencies
-      run: make
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libbpf-dev libsystemd-dev libgtk-4-dev libadwaita-1-dev clang make pkg-config
 
-    - name: Run check
-      run: make check
+    - name: Build
+      run: sudo make install
+
+    - name: Automated Setup (Full)
+      run: |
+        export X3D_SETUP_MODE=full
+        sudo -E ./setup.sh
 
     - name: Run distcheck
       run: make distcheck

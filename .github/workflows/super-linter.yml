@@ -24,8 +24,23 @@ jobs:
           fetch-depth: 0
 
       - name: Lint Code Base
-        uses: github/super-linter@v4
+        uses: github/super-linter@v6
         env:
           VALIDATE_ALL_CODEBASE: false
           DEFAULT_BRANCH: "main"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+          # Language Specifics
+          VALIDATE_CPP: true
+          VALIDATE_SH: true
+          VALIDATE_CSS: true
+          VALIDATE_YAML: true
+          VALIDATE_MAKEFILE: true
+          
+          # Security & Style
+          VALIDATE_GITLEAKS: true
+          VALIDATE_CLANG_FORMAT: true
+          
+          # Exclusions
+          FILTER_REGEX_EXCLUDE: 'build/.*|scripts/framework/.*\.sh'
+          IGNORE_GITIGNORED_FILES: true
