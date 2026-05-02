@@ -45,6 +45,12 @@ extern int errno;
 #ifndef INT_MIN
 #define INT_MIN  (-INT_MAX - 1)
 #endif
+#ifndef LONG_MAX
+#define LONG_MAX  9223372036854775807L
+#endif
+#ifndef LONG_MIN
+#define LONG_MIN  (-LONG_MAX - 1L)
+#endif
 
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1

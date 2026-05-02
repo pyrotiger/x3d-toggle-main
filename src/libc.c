@@ -771,7 +771,7 @@ int isspace(int c) {
 }
 
 long strtol(const char *p, char **e, int b) {
-  long r = 0;
+  unsigned long r = 0;
   int neg = 0;
   while (*p == ' ' || *p == '\t')
     p++;
@@ -784,7 +784,9 @@ long strtol(const char *p, char **e, int b) {
   } else if (b == 16 && *p == '0' && (*(p+1) == 'x' || *(p+1) == 'X')) {
     p += 2;
   }
-  const char *start = p;
+  const char *digits_start = p;
+  int overflow = 0;
+  unsigned long limit = neg ? ((unsigned long)LONG_MAX + 1UL) : (unsigned long)LONG_MAX;
   while (*p) {
     int v;
     if (*p >= '0' && *p <= '9') v = *p - '0';
@@ -792,12 +794,19 @@ long strtol(const char *p, char **e, int b) {
     else if (*p >= 'A' && *p <= 'Z') v = *p - 'A' + 10;
     else break;
     if (v >= b) break;
-    r = r * b + v;
+    if (!overflow && (r > (limit - (unsigned long)v) / (unsigned long)b)) {
+      overflow = 1;
+    }
+    if (!overflow) r = r * (unsigned long)b + (unsigned long)v;
     p++;
   }
-  (void)start;
+  if (p == digits_start) r = 0;
+  if (overflow) {
+    errno = ERANGE;
+    return neg ? LONG_MIN : LONG_MAX;
+  }
   if (e) *e = (char *)p;
-  return neg ? -r : r;
+  return neg ? -(long)r : (long)r;
 }
 
 unsigned long long strtoull(const char *p, char **e, int b) {
