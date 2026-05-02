@@ -1,0 +1,35 @@
+name: SonarCloud analysis
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: read # allows SonarCloud to decorate PRs with analysis results
+
+jobs:
+  Analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      # You MUST checkout the repository first before SonarCloud can scan it.
+      # Fetch-depth is set to 0 to fetch all history for accurate blame/issue tracking.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
+
+      - name: Analyze with SonarCloud
+        uses: SonarSource/sonarcloud-github-action@4006f663ecaf1f8093e8e4abb9227f6041f52216
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}   # Generate a token on Sonarcloud.io, add to repo secrets
+        with:
+          args: >
+            -Dsonar.projectKey=X3D-Toggle_x3d-toggle
+            -Dsonar.organization=x3d-toggle
+            -Dsonar.sources=src,include,scripts
+            -Dsonar.cfamily.compile-commands=compile_commands.json
+          projectBaseDir: .

@@ -11,7 +11,6 @@ permissions:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -20,20 +19,17 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libbpf-dev libsystemd-dev libgtk-4-dev libadwaita-1-dev clang make pkg-config linux-tools-common linux-tools-$(uname -r) linux-cloud-tools-$(uname -r)
+        sudo apt-get install -y libbpf-dev libsystemd-dev libgtk-4-dev libadwaita-1-dev clang make pkg-config linux-tools-generic bpftool
 
     - name: Generate vmlinux.h
       run: |
         mkdir -p build
         sudo bpftool btf dump file /sys/kernel/btf/vmlinux format c > build/vmlinux.h
 
-    - name: Build
-      run: sudo make purge install
-
-    - name: Automated Setup (Full)
-      run: |
-        export X3D_SETUP_MODE=full
-        sudo -E ./setup.sh
+    - name: Build project
+      # Standard compilation target only. Sudo is omitted.
+      run: make
 
     - name: Run distcheck
+      # Verifies distribution packaging if configured in the Makefile
       run: make distcheck
