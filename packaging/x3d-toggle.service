@@ -45,7 +45,8 @@ ReadWritePaths=/etc/x3d-toggle.d
 ReadWritePaths=/var/log/x3d-toggle
 ReadWritePaths=/proc/sys/kernel
 
-ExecStopPost=/usr/bin/x3d-toggle journal-dump ; /usr/bin/x3d-toggle journal-archive
+ExecStopPost=/usr/bin/x3d-toggle journal-dump
+ExecStopPost=/usr/bin/x3d-toggle journal-archive
 
 [Install]
 WantedBy=multi-user.target

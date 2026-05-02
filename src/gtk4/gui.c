@@ -8,13 +8,14 @@
 #include <gtk/gtk.h>
 
 extern int socket_send(const char *cmd, char *response, size_t resp_len);
-extern size_t scat(char *dest, const char *src, size_t dest_size);
 extern int printf_sn(char *buf, size_t size, const char *fmt, ...);
+extern char *strncpy(char *d, const char *s, size_t n);
 
 #define BUFF_LINE 256
 #define BUFF_INFO 128
 #define BUFF_STATE 16
 #define CONF_PATH "/etc/x3d-toggle.d/settings.conf"
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 static void config_send(const char *key, const char *value);
 
@@ -64,7 +65,7 @@ static gboolean update_dashboard_cb(gpointer user_data) {
   }
   daemon_retry_cooldown = 0;
 
-  char display[BUFF_LINE * 2];
+  char display[BUFF_LINE * 2] = {0};
   char state_str[BUFF_STATE] = "Unknown";
   char active_str[BUFF_STATE] = "Inactive";
 
@@ -72,20 +73,24 @@ static gboolean update_dashboard_cb(gpointer user_data) {
   char *ba = strstr(info, "BPF_ACTIVE=");
 
   if (st) {
-    scat(state_str, st + 6, sizeof(state_str));
+    strncpy(state_str, st + 6, sizeof(state_str) - 1);
+    state_str[sizeof(state_str) - 1] = '\0';
     char *sem = strchr(state_str, ';');
     if (sem)
       *sem = '\0';
   }
   if (ba && atoi(ba + 11))
-    scat(active_str, "eBPF (Active)", sizeof(active_str));
+    strncpy(active_str, "eBPF (Active)", sizeof(active_str) - 1);
   else
-    scat(active_str, "Polling", sizeof(active_str));
+    strncpy(active_str, "Polling", sizeof(active_str) - 1);
+  active_str[sizeof(active_str) - 1] = '\0';
 
   /* Fetch v-Cache mode via MODE IPC */
   char mode_str[BUFF_STATE] = "Unknown";
-  if (socket_send("MODE", mode_str, sizeof(mode_str)) != 0)
-    scat(mode_str, "N/A", sizeof(mode_str));
+  if (socket_send("MODE", mode_str, sizeof(mode_str)) != 0) {
+    strncpy(mode_str, "N/A", sizeof(mode_str) - 1);
+    mode_str[sizeof(mode_str) - 1] = '\0';
+  }
 
   printf_sn(display, sizeof(display),
             "<b>Daemon State:</b>  %s\n"
@@ -214,7 +219,7 @@ static void on_mode_apply_clicked(GtkButton *btn, gpointer data) {
 
   /* 1. Execute Hardware Mode via IPC */
   if (g_selected_mode) {
-    char cmd[64];
+    char cmd[64] = {0};
     if (strcmp(g_selected_mode, "reset") == 0) {
       /* Reset: clear override and let daemon re-probe */
       socket_send("SET_MODE reset", NULL, 0);
@@ -314,7 +319,8 @@ static char *config_get(const char *key) {
     if (strncmp(line, key, klen) == 0 && line[klen] == '=') {
       char *v = line + klen + 1;
       v[strcspn(v, "\r\n")] = '\0';
-      scat(val, v, sizeof(val));
+      strncpy(val, v, sizeof(val) - 1);
+      val[sizeof(val) - 1] = '\0';
       break;
     }
   }
@@ -387,7 +393,7 @@ static void on_server_address_changed(GtkEditable *editable, gpointer data) {
   if (!ip || !ip[0] || !port || !port[0])
     return;
   char combined[128];
-  snprintf(combined, sizeof(combined), "%s:%s", ip, port);
+  printf_sn(combined, sizeof(combined), "%s:%s", ip, port);
   config_send("SERVER_ADDRESS", combined);
 }
 
@@ -450,7 +456,7 @@ static const char *fallback_vals[] = {"default", "cache", "frequency"};
 static const char *valgrind_mode_vals[] = {"full", "summary", "disabled"};
 static const char *valgrind_kinds_vals[] = {"all", "definite", "indirect",
                                             "possible", "reachable"};
-static const char *journal_max_mb_vals[] = {"5", "10", "25", "50", "100", NULL};
+static const char *journal_max_mb_vals[] = {"5", "10", "25", "50", "100"};
 
 static CfgDropData dd_daemon_state = {"DAEMON_STATE", daemon_state_vals, 0};
 static CfgDropData dd_fallback = {"FALLBACK_PROFILE", fallback_vals, 0};
@@ -480,7 +486,7 @@ static void on_rotation_apply_clicked(GtkButton *btn, gpointer data) {
   }
   if (g_cfg_journal_max_mb) {
     guint idx = gtk_drop_down_get_selected(g_cfg_journal_max_mb);
-    if (idx < 5) {
+    if (idx < ARRAY_SIZE(journal_max_mb_vals)) {
       char val_str[16];
       printf_sn(val_str, sizeof(val_str), "%s", journal_max_mb_vals[idx]);
       config_send("JOURNAL_MAX_MB", val_str);
@@ -499,7 +505,7 @@ static void on_rotation_cancel_clicked(GtkButton *btn, gpointer data) {
   if (g_cfg_journal_max_mb) {
     const char *val = config_get("JOURNAL_MAX_MB");
     gtk_drop_down_set_selected(g_cfg_journal_max_mb,
-                               find_dropdown_idx(journal_max_mb_vals, 5, val));
+                               find_dropdown_idx(journal_max_mb_vals, ARRAY_SIZE(journal_max_mb_vals), val));
   }
 }
 
@@ -512,7 +518,7 @@ static void bind_config(GtkBuilder *builder) {
   if (w) {
     val = config_get("DAEMON_STATE");
     gtk_drop_down_set_selected(GTK_DROP_DOWN(w),
-                               find_dropdown_idx(daemon_state_vals, 3, val));
+                               find_dropdown_idx(daemon_state_vals, ARRAY_SIZE(daemon_state_vals), val));
     g_signal_connect(w, "notify::selected", G_CALLBACK(on_cfg_dropdown_changed),
                      &dd_daemon_state);
   }
@@ -522,7 +528,7 @@ static void bind_config(GtkBuilder *builder) {
   if (w) {
     val = config_get("FALLBACK_PROFILE");
     gtk_drop_down_set_selected(GTK_DROP_DOWN(w),
-                               find_dropdown_idx(fallback_vals, 3, val));
+                               find_dropdown_idx(fallback_vals, ARRAY_SIZE(fallback_vals), val));
     g_signal_connect(w, "notify::selected", G_CALLBACK(on_cfg_dropdown_changed),
                      &dd_fallback);
   }
@@ -642,7 +648,7 @@ static void bind_config(GtkBuilder *builder) {
   if (w) {
     val = config_get("LINT_VALGRIND_MODE");
     gtk_drop_down_set_selected(GTK_DROP_DOWN(w),
-                               find_dropdown_idx(valgrind_mode_vals, 3, val));
+                               find_dropdown_idx(valgrind_mode_vals, ARRAY_SIZE(valgrind_mode_vals), val));
     g_signal_connect(w, "notify::selected", G_CALLBACK(on_cfg_dropdown_changed),
                      &dd_valgrind_m);
   }
@@ -652,7 +658,7 @@ static void bind_config(GtkBuilder *builder) {
   if (w) {
     val = config_get("LINT_VALGRIND_KINDS");
     gtk_drop_down_set_selected(GTK_DROP_DOWN(w),
-                               find_dropdown_idx(valgrind_kinds_vals, 5, val));
+                               find_dropdown_idx(valgrind_kinds_vals, ARRAY_SIZE(valgrind_kinds_vals), val));
     g_signal_connect(w, "notify::selected", G_CALLBACK(on_cfg_dropdown_changed),
                      &dd_valgrind_k);
   }
@@ -693,7 +699,7 @@ static void bind_config(GtkBuilder *builder) {
     g_cfg_journal_max_mb = GTK_DROP_DOWN(w);
     val = config_get("JOURNAL_MAX_MB");
     gtk_drop_down_set_selected(g_cfg_journal_max_mb,
-                               find_dropdown_idx(journal_max_mb_vals, 5, val));
+                               find_dropdown_idx(journal_max_mb_vals, ARRAY_SIZE(journal_max_mb_vals), val));
   }
 
   /* Rotation Settings Apply/Cancel */
@@ -713,8 +719,9 @@ static void bind_config(GtkBuilder *builder) {
     g_cfg_server_port = GTK_EDITABLE(w2);
     val = config_get("SERVER_ADDRESS");
     if (val && val[0]) {
-      char buf[128];
-      scat(buf, val, sizeof(buf));
+      char buf[128] = {0};
+      strncpy(buf, val, sizeof(buf) - 1);
+      buf[sizeof(buf) - 1] = '\0';
       char *colon = strchr(buf, ':');
       if (colon) {
         *colon = '\0';

@@ -1,7 +1,5 @@
 /* Socket Server for the X3D Toggle Project
- *
  * `socket.c`
- *
  * Handles Daemon-side UNIX Domain Socket creation and listens for CLI commands.
  * Employs a non-blocking select() loop for graceful termination.
  */
@@ -29,7 +27,11 @@ int socket_setup(void) {
 
   /* Set non-blocking to avoid main loop stalls */
   int flags = fcntl(fd, F_GETFL, 0);
-  fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+  if (flags < 0 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+    syslog(LOG_ERR, "Failed to set non-blocking mode on socket: %s", strerror(errno));
+    close(fd);
+    return -1;
+  }
 
   struct sockaddr_un addr;
   memset(&addr, 0, sizeof(struct sockaddr_un));
@@ -69,7 +71,7 @@ void socket_handle(int server_fd) {
 
     if (strncmp(buf, "PING", 4) == 0) {
       send(client_fd, "OK", 2, MSG_NOSIGNAL);
-    } else if (strncmp(buf, "MODE", 8) == 0) {
+    } else if (strncmp(buf, "MODE", 4) == 0) {
       char current[32];
       mode(current, sizeof(current));
       send(client_fd, current, strlen(current), MSG_NOSIGNAL);
