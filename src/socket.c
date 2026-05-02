@@ -213,8 +213,10 @@ void socket_handle(int server_fd) {
       errno = 0;
       long watts_long = strtol(buf + 8, &endptr, 10);
       int ret = ERR_INVALID_ARGS;
-      if (endptr != buf + 8 && *endptr == '\0' && errno != ERANGE &&
-          watts_long >= INT_MIN && watts_long <= INT_MAX) {
+      if (endptr == buf + 8 || *endptr != '\0' || errno == ERANGE ||
+          watts_long < INT_MIN || watts_long > INT_MAX) {
+        ret = ERR_INVALID_ARGS;
+      } else {
         ret = cppc_tdp((int)watts_long);
       }
       send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",

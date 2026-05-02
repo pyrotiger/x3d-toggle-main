@@ -17,14 +17,11 @@ static void trim_ws_inplace(char *s)
     if (!s) return;
 
     char *start = s;
-    while (*start && (*start == ' ' || *start == '\t' || *start == '\n' ||
-                      *start == '\r' || *start == '\f' || *start == '\v'))
+    while (*start && isspace((unsigned char)*start))
         start++;
 
     char *end = start + strlen(start);
-    while (end > start && (*(end - 1) == ' ' || *(end - 1) == '\t' ||
-                           *(end - 1) == '\n' || *(end - 1) == '\r' ||
-                           *(end - 1) == '\f' || *(end - 1) == '\v'))
+    while (end > start && isspace((unsigned char)*(end - 1)))
         end--;
     *end = '\0';
 
@@ -103,7 +100,7 @@ int games_match(const gamelist *gl, const char *comm)
 
 #define MAX_LINES 1024
 
-static int lines_grow(char (**lines)[256], int *cap)
+static int lines_expand(char (**lines)[256], int *cap)
 {
     int new_cap = *cap * 2;
     if (new_cap > MAX_LINES) new_cap = MAX_LINES;
@@ -167,13 +164,13 @@ int game_add(const char *game) {
     if (games_usr_idx == -1) {
         if (count >= MAX_LINES) { free(lines); return ERR_MEM; }
         if (count >= cap) {
-            if (lines_grow(&lines, &cap) != 0) { free(lines); return ERR_MEM; }
+            if (lines_expand(&lines, &cap) != 0) { free(lines); return ERR_MEM; }
         }
         printf_sn(lines[count++], 256, "\n[GAMES_USR]\n%s\n", game);
     } else {
         if (count >= MAX_LINES) { free(lines); return ERR_MEM; }
         if (count >= cap) {
-            if (lines_grow(&lines, &cap) != 0) { free(lines); return ERR_MEM; }
+            if (lines_expand(&lines, &cap) != 0) { free(lines); return ERR_MEM; }
         }
         for (int j = count; j > games_usr_idx + 1; j--) {
             if (j < MAX_LINES) printf_sn(lines[j], 256, "%s", lines[j-1]);
