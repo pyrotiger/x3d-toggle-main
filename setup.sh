@@ -24,6 +24,11 @@ else
     printf_divider() { echo "----------------------------------------"; }
 fi
 
+: "${SEQ_UP:=$(printf '\033[A')}"
+: "${SEQ_RIGHT:=$(printf '\033[C')}"
+: "${SEQ_DOWN:=$(printf '\033[B')}"
+: "${SEQ_LEFT:=$(printf '\033[D')}"
+
 if [ "$(id -u)" -ne 0 ]; then
     printf_step "2,${XOUT} Error: setup.sh must be run with sudo/root privileges."
     printf_step "2,Try: sudo make setup"
