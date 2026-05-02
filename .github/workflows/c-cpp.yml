@@ -17,7 +17,12 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libbpf-dev libsystemd-dev libgtk-4-dev libadwaita-1-dev clang make pkg-config
+        sudo apt-get install -y libbpf-dev libsystemd-dev libgtk-4-dev libadwaita-1-dev clang make pkg-config bpftool
+
+    - name: Generate vmlinux.h
+      run: |
+        mkdir -p build
+        sudo bpftool btf dump file /sys/kernel/btf/vmlinux format c > build/vmlinux.h
 
     - name: Build and Install
       run: sudo make purge install

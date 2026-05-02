@@ -236,7 +236,9 @@ setup:
 	./setup.sh
 
 clean:
-	rm -rf bin/* build/* bin/.[!.]* build/.[!.]*
+	echo "  🧹 Cleaning build artifacts..."
+	rm -rf $(BIN) $(DIR_BUILD)
+	mkdir -p $(BIN) $(DIR_BUILD)
 
 uninstall:
 	-systemctl stop x3d-toggle.service
@@ -282,7 +284,7 @@ uninstall:
 	rm -rf $(DEST_ETC)
 	rm -rf $(DEST_VAR)/lib/x3d-toggle
 
-	rm -rf bin/* build/* bin/.[!.]* build/.[!.]*
+	$(MAKE) clean
 	rm -rf etc/x3d-toggle.d
 
 	-udevadm control --reload-rules && udevadm trigger

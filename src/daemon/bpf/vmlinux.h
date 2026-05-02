@@ -1,1 +1,1 @@
-../../../build/vmlinux.h
+#include "../../../build/vmlinux.h"
