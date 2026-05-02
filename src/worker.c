@@ -49,15 +49,25 @@ int socket_send(const char *cmd, char *response, size_t resp_len) {
         ssize_t bytes_read = read(fd, response, resp_len - 1);
         if (bytes_read > 0) {
             response[bytes_read] = '\0';
+        } else if (bytes_read == 0) {
+            journal_error(ERR_IPC, -3);
+            close(fd);
+            return ERR_IPC;
         } else {
-            journal_error(ERR_IPC, (int)bytes_read);
+            journal_error(ERR_IPC, errno);
             close(fd);
             return ERR_IPC;
         }
     } else {
         char buf[16] = {0};
-        if (read(fd, buf, sizeof(buf) - 1) <= 0 || strncmp(buf, "OK", 2) != 0) {
-            journal_error(ERR_IPC, -3);
+        ssize_t bytes_read = read(fd, buf, sizeof(buf) - 1);
+        if (bytes_read <= 0) {
+            journal_error(ERR_IPC, errno);
+            close(fd);
+            return ERR_IPC;
+        }
+        if (strncmp(buf, "OK", 2) != 0) {
+            journal_error(ERR_IPC, ERR_IPC);
             close(fd);
             return ERR_IPC;
         }
@@ -81,7 +91,11 @@ int socket_probe(void) {
         return ERR_IPC;
     }
 
-    send(fd, "PING", 4, MSG_NOSIGNAL);
+    ssize_t sent = send(fd, "PING", 4, MSG_NOSIGNAL);
+    if (sent != 4) {
+        close(fd);
+        return ERR_IPC;
+    }
     char buf[16] = {0};
     int ret = (read(fd, buf, sizeof(buf)-1) > 0 && strncmp(buf, "OK", 2) == 0) ? ERR_SUCCESS : ERR_IPC;
     

@@ -1,5 +1,5 @@
 /* CLI Entry Point for the X3D Toggle Project
- * `x3d-toggle.c`
+ * `toggle.c`
  * Frontend layer for passing CLI to the daemon.
  * Model-agnostic implementation for heterogeneous architectures.
  */
@@ -8,6 +8,8 @@
 #include "cli.h"
 #include "error.h"
 #include "libc.h"
+
+#define ALIAS_BUF_SIZE 64
 
 static void printf_help(void) {
   printf_br();
@@ -35,7 +37,7 @@ static void printf_help(void) {
       printf_string("Diagnostics:");
     }
     
-    char alias_buf[16] = "";
+    char alias_buf[ALIAS_BUF_SIZE] = "";
     for (int j = 0; cmd_table[j].name != NULL; j++) {
       if (cmd_table[i].handler == cmd_table[j].handler && i != j) {
         printf_sn(alias_buf, sizeof(alias_buf), "%s", cmd_table[j].name);
