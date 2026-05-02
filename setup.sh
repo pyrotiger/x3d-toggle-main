@@ -9,6 +9,10 @@ set -e
 export X3D_EXEC=1
 export X3D_SETUP=1
 GUI_INSTALLED=0
+: "${UP:=↑}"
+: "${RIGHT:=→}"
+: "${DOWN:=↓}"
+: "${LEFT:=←}"
 
 if [ -f "./scripts/framework/framework.sh" ]; then
     . "./scripts/framework/framework.sh"
