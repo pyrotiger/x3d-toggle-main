@@ -20,7 +20,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libbpf-dev libsystemd-dev libgtk-4-dev libadwaita-1-dev clang make pkg-config bpftool
+        sudo apt-get install -y libbpf-dev libsystemd-dev libgtk-4-dev libadwaita-1-dev clang make pkg-config linux-tools-common linux-tools-generic
 
     - name: Generate vmlinux.h
       run: |
