@@ -10,13 +10,18 @@ export X3D_EXEC=1
 export X3D_SETUP=1
 GUI_INSTALLED=0
 
+# REMOVED ONLY THE FIRST 3 LINES ADDED IN PR #13 (as per issue #14)
+# : "${UP:=↑}"
+# : "${RIGHT:=→}"
+# : "${DOWN:=↓}"
+
 if [ -f "./scripts/framework/framework.sh" ]; then
     . "./scripts/framework/framework.sh"
 elif [ -f "/usr/lib/x3d-toggle/scripts/framework/framework.sh" ]; then
     . "/usr/lib/x3d-toggle/scripts/framework/framework.sh"
 else
     echo "⚠️  Warning: framework.sh not found. Proceeding with standard terminal I/O."
-    XOUT="❌"; WARN="⚠️"; ALRIGHT="✔️"; QUERY="❓"; ROCKET="🚀"; GEAR="⚙️"; STOPSIGN="🛑"; INFO="🌐"
+    XOUT="❌"; WARN="⚠️"; ALRIGHT="✔️"; QUERY="❓"; ROCKET="🚀"; GEAR="⚙️"; RELOAD="🔄"; STOPSIGN="🛑"; INFO="🌐"
     printf_step() { echo "  > $*"; }
     printf_step_no_nl() { echo -n "  > $*"; }
     printf_center() { echo "=== $* ==="; }
