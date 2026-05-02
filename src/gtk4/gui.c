@@ -6,6 +6,9 @@
 
 #include <adwaita.h>
 #include <gtk/gtk.h>
+#include "error.h"
+#include "config.h"
+#include "ccd.h"
 
 extern int socket_send(const char *cmd, char *response, size_t resp_len);
 extern int printf_sn(char *buf, size_t size, const char *fmt, ...);
@@ -14,10 +17,11 @@ extern char *strncpy(char *d, const char *s, size_t n);
 #define BUFF_LINE 256
 #define BUFF_INFO 128
 #define BUFF_STATE 16
-#define CONF_PATH "/etc/x3d-toggle.d/settings.conf"
+#define CONF_PATH DAEMON_CONF_PATH
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 static void config_send(const char *key, const char *value);
+static char *config_get(const char *key);
 
 static GtkWidget *lbl_status_dump = NULL;
 static GtkEditable *g_cfg_server_ip = NULL;
@@ -29,9 +33,12 @@ static GtkDropDown *g_cfg_journal_max_mb = NULL;
 static GtkWidget *row_developer = NULL;
 static GtkWidget *row_debug = NULL;
 static GtkWidget *row_advanced = NULL;
+static GtkWidget *row_affinity = NULL;
 static GtkListBox *g_sidebar = NULL;
 static GtkStack *g_stack = NULL;
 static GtkDropDown *g_lifecycle_dropdown = NULL;
+static GtkDropDown *g_cfg_affinity_level = NULL;
+static GtkGrid *g_grid_topology = NULL;
 
 static const char *g_selected_mode = NULL;
 static GtkWidget *mode_btns[5]; /* Cache, Frequency, Dual, Default, Reset */
@@ -291,14 +298,157 @@ static GtkWidget *add_nav_row(GtkListBox *list, const char *id,
   gtk_list_box_append(list, row);
   return row;
 }
+static int is_core_in_mask(int core, const char *mask) {
+  char buf[256];
+  strncpy(buf, mask, sizeof(buf) - 1);
+  buf[sizeof(buf) - 1] = '\0';
+  char *p = buf;
+  while (p && *p) {
+    char *comma = strchr(p, ',');
+    if (comma) *comma = '\0';
+    char *hyphen = strchr(p, '-');
+    if (hyphen) {
+      int start = atoi(p);
+      int end = atoi(hyphen + 1);
+      if (core >= start && core <= end) return 1;
+    } else {
+      if (atoi(p) == core) return 1;
+    }
+    if (!comma) break;
+    p = comma + 1;
+  }
+  return 0;
+}
 
+static void on_core_toggled(GtkToggleButton *btn, gpointer user_data) {
+  (void)user_data;
+
+  /* Auto-toggle to Manual mode (index 2) upon user interaction */
+  if (g_cfg_affinity_level) {
+    gtk_drop_down_set_selected(g_cfg_affinity_level, 2);
+  }
+
+  if (gtk_toggle_button_get_active(btn)) {
+    gtk_widget_add_css_class(GTK_WIDGET(btn), "x3d-accent");
+  } else {
+    gtk_widget_remove_css_class(GTK_WIDGET(btn), "x3d-accent");
+  }
+}
+
+void refresh_topology(void) {
+  if (!g_grid_topology) return;
+  char mask[128] = {0};
+  int ccd1_start = 0;
+  int total_cores = 0;
+  if (ccd(mask, &ccd1_start, &total_cores) != 0) return;
+  
+  /* Priority: Use user-defined persistence from daemon.conf if available */
+  const char *saved_mask = config_get("AFFINITY_MASK");
+  if (saved_mask && saved_mask[0] && strcmp(saved_mask, "none") != 0) {
+      strncpy(mask, saved_mask, sizeof(mask)-1);
+  }
+
+  GtkWidget *child = gtk_widget_get_first_child(GTK_WIDGET(g_grid_topology));
+  while (child) {
+    GtkWidget *next = gtk_widget_get_next_sibling(child);
+    gtk_grid_remove(g_grid_topology, child);
+    child = next;
+  }
+
+  for (int i = 0; i < total_cores; i++) {
+    char label[8];
+    printf_sn(label, sizeof(label), "%d", i);
+    GtkWidget *btn = gtk_toggle_button_new_with_label(label);
+    gtk_grid_attach(g_grid_topology, btn, i % 8, i / 8, 1, 1);
+    if (is_core_in_mask(i, mask)) {
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(btn), TRUE);
+      gtk_widget_add_css_class(btn, "x3d-accent");
+    }
+    g_signal_connect(btn, "toggled", G_CALLBACK(on_core_toggled), NULL);
+  }
+}
+
+static void on_affinity_apply_clicked(GtkButton *btn, gpointer user_data) {
+  (void)btn;
+  (void)user_data;
+
+  if (!g_grid_topology)
+    return;
+
+  char cache_mask[256] = {0};
+  char freq_mask[256] = {0};
+  int cache_pos = 0;
+  int freq_pos = 0;
+
+  GtkWidget *child = gtk_widget_get_first_child(GTK_WIDGET(g_grid_topology));
+  while (child) {
+    if (GTK_IS_TOGGLE_BUTTON(child)) {
+      GtkToggleButton *tb = GTK_TOGGLE_BUTTON(child);
+      const char *label = gtk_button_get_label(GTK_BUTTON(tb));
+      if (gtk_toggle_button_get_active(tb)) {
+        cache_pos += printf_sn(cache_mask + cache_pos,
+                               sizeof(cache_mask) - cache_pos, "%s%s",
+                               (cache_pos > 0) ? "," : "", label);
+      } else {
+        freq_pos += printf_sn(freq_mask + freq_pos,
+                              sizeof(freq_mask) - freq_pos, "%s%s",
+                              (freq_pos > 0) ? "," : "", label);
+      }
+    }
+    child = gtk_widget_get_next_sibling(child);
+  }
+
+  char cmd[512];
+  printf_sn(cmd, sizeof(cmd), "SET_AFFINITY_CONFIG %s %s",
+            (cache_mask[0]) ? cache_mask : "none",
+            (freq_mask[0]) ? freq_mask : "none");
+  int ret = socket_send(cmd, NULL, 0);
+  if (atoi(config_get("DEBUG_ENABLE"))) {
+    journal_debug("GUI: Sent affinity config: %s (result=%d)", cmd, ret);
+  }
+
+  /* Brief visual confirmation (Update status label if available) */
+  if (lbl_status_dump) {
+      gtk_label_set_label(GTK_LABEL(lbl_status_dump), "Affinity Settings Applied");
+  }
+
+  /* Persistence */
+  config_send("AFFINITY_MASK", cache_mask);
+  config_send("AFFINITY_FREQ_MASK", freq_mask);
+
+  if (g_cfg_affinity_level) {
+    char lvl_str[4];
+    printf_sn(lvl_str, sizeof(lvl_str), "%u",
+              gtk_drop_down_get_selected(g_cfg_affinity_level));
+    config_send("AFFINITY_LEVEL", lvl_str);
+  }
+}
+
+static void on_affinity_cancel_clicked(GtkButton *btn, gpointer user_data) {
+  (void)btn;
+  (void)user_data;
+
+  /* Reset dropdown to saved config */
+  if (g_cfg_affinity_level) {
+    const char *val = config_get("AFFINITY_LEVEL");
+    gtk_drop_down_set_selected(g_cfg_affinity_level,
+                               (guint)atoi(val ? val : "0"));
+  }
+
+  refresh_topology();
+}
 static void on_nav_row_selected(GtkListBox *box, GtkListBoxRow *row,
                                 gpointer user_data) {
+  (void)box;
   if (!row)
     return;
   GtkStack *stack = GTK_STACK(user_data);
   const char *id = gtk_widget_get_name(GTK_WIDGET(row));
   gtk_stack_set_visible_child_name(stack, id);
+
+  if (id && strcmp(id, "affinity") == 0) {
+    refresh_topology();
+  }
 }
 
 /* ── Config: Read settings.conf ───────────────────────────────── */
@@ -504,8 +654,10 @@ static void on_rotation_cancel_clicked(GtkButton *btn, gpointer data) {
   }
   if (g_cfg_journal_max_mb) {
     const char *val = config_get("JOURNAL_MAX_MB");
-    gtk_drop_down_set_selected(g_cfg_journal_max_mb,
-                               find_dropdown_idx(journal_max_mb_vals, ARRAY_SIZE(journal_max_mb_vals), val));
+    gtk_drop_down_set_selected(
+        g_cfg_journal_max_mb,
+        find_dropdown_idx(journal_max_mb_vals, ARRAY_SIZE(journal_max_mb_vals),
+                          val));
   }
 }
 
@@ -518,7 +670,9 @@ static void bind_config(GtkBuilder *builder) {
   if (w) {
     val = config_get("DAEMON_STATE");
     gtk_drop_down_set_selected(GTK_DROP_DOWN(w),
-                               find_dropdown_idx(daemon_state_vals, ARRAY_SIZE(daemon_state_vals), val));
+                               find_dropdown_idx(daemon_state_vals,
+                                                 ARRAY_SIZE(daemon_state_vals),
+                                                 val));
     g_signal_connect(w, "notify::selected", G_CALLBACK(on_cfg_dropdown_changed),
                      &dd_daemon_state);
   }
@@ -527,8 +681,9 @@ static void bind_config(GtkBuilder *builder) {
   w = gtk_builder_get_object(builder, "cfg_fallback_profile");
   if (w) {
     val = config_get("FALLBACK_PROFILE");
-    gtk_drop_down_set_selected(GTK_DROP_DOWN(w),
-                               find_dropdown_idx(fallback_vals, ARRAY_SIZE(fallback_vals), val));
+    gtk_drop_down_set_selected(
+        GTK_DROP_DOWN(w),
+        find_dropdown_idx(fallback_vals, ARRAY_SIZE(fallback_vals), val));
     g_signal_connect(w, "notify::selected", G_CALLBACK(on_cfg_dropdown_changed),
                      &dd_fallback);
   }
@@ -648,7 +803,9 @@ static void bind_config(GtkBuilder *builder) {
   if (w) {
     val = config_get("LINT_VALGRIND_MODE");
     gtk_drop_down_set_selected(GTK_DROP_DOWN(w),
-                               find_dropdown_idx(valgrind_mode_vals, ARRAY_SIZE(valgrind_mode_vals), val));
+                               find_dropdown_idx(valgrind_mode_vals,
+                                                 ARRAY_SIZE(valgrind_mode_vals),
+                                                 val));
     g_signal_connect(w, "notify::selected", G_CALLBACK(on_cfg_dropdown_changed),
                      &dd_valgrind_m);
   }
@@ -657,8 +814,10 @@ static void bind_config(GtkBuilder *builder) {
   w = gtk_builder_get_object(builder, "cfg_lint_valgrind_kinds");
   if (w) {
     val = config_get("LINT_VALGRIND_KINDS");
-    gtk_drop_down_set_selected(GTK_DROP_DOWN(w),
-                               find_dropdown_idx(valgrind_kinds_vals, ARRAY_SIZE(valgrind_kinds_vals), val));
+    gtk_drop_down_set_selected(
+        GTK_DROP_DOWN(w),
+        find_dropdown_idx(valgrind_kinds_vals, ARRAY_SIZE(valgrind_kinds_vals),
+                          val));
     g_signal_connect(w, "notify::selected", G_CALLBACK(on_cfg_dropdown_changed),
                      &dd_valgrind_k);
   }
@@ -698,8 +857,10 @@ static void bind_config(GtkBuilder *builder) {
   if (w) {
     g_cfg_journal_max_mb = GTK_DROP_DOWN(w);
     val = config_get("JOURNAL_MAX_MB");
-    gtk_drop_down_set_selected(g_cfg_journal_max_mb,
-                               find_dropdown_idx(journal_max_mb_vals, ARRAY_SIZE(journal_max_mb_vals), val));
+    gtk_drop_down_set_selected(
+        g_cfg_journal_max_mb,
+        find_dropdown_idx(journal_max_mb_vals, ARRAY_SIZE(journal_max_mb_vals),
+                          val));
   }
 
   /* Rotation Settings Apply/Cancel */
@@ -830,6 +991,8 @@ static void on_app_activate(GtkApplication *app, gpointer user_data) {
   add_nav_row(sidebar, "dashboard", "Dashboard");
   add_nav_row(sidebar, "modes", "Modes");
 
+  row_affinity = add_nav_row(sidebar, "affinity", "Threaded Affinity Settings");
+
   add_nav_row(sidebar, "configuration", "Configuration");
   row_advanced = add_nav_row(sidebar, "advanced", "Advanced Configuration");
   row_developer = add_nav_row(sidebar, "developer", "Developer Options");
@@ -871,6 +1034,23 @@ static void on_app_activate(GtkApplication *app, gpointer user_data) {
   w = (GObject *)gtk_builder_get_object(builder, "btn_mode_cancel");
   if (w)
     g_signal_connect(w, "clicked", G_CALLBACK(on_mode_cancel_clicked), NULL);
+
+  /* Affinity Tab Bindings */
+  w = gtk_builder_get_object(builder, "grid_topology");
+  if (w) g_grid_topology = GTK_GRID(w);
+
+  w = gtk_builder_get_object(builder, "btn_affinity_apply");
+  if (w) g_signal_connect(w, "clicked", G_CALLBACK(on_affinity_apply_clicked), NULL);
+
+  w = gtk_builder_get_object(builder, "btn_affinity_cancel");
+  if (w) g_signal_connect(w, "clicked", G_CALLBACK(on_affinity_cancel_clicked), NULL);
+
+  w = gtk_builder_get_object(builder, "cfg_affinity_level");
+  if (w) {
+    g_cfg_affinity_level = GTK_DROP_DOWN(w);
+    const char *val = config_get("AFFINITY_LEVEL");
+    gtk_drop_down_set_selected(g_cfg_affinity_level, (guint)atoi(val ? val : "0"));
+  }
 
   /* Bind Lifecycle Dropdown */
   g_lifecycle_dropdown =

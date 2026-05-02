@@ -4,14 +4,14 @@
  * Employs a non-blocking select() loop for graceful termination.
  */
 
-#include "libc.h"
-#include "daemon/bpf/bpf-user.h"
 #include "../build/config.h"
-#include "modes.h"
+#include "../build/xui.h"
 #include "cppc.h"
+#include "daemon/bpf/bpf-user.h"
 #include "error.h"
 #include "ipc.h"
-#include "../build/xui.h"
+#include "libc.h"
+#include "modes.h"
 
 extern volatile sig_atomic_t active_keep;
 extern volatile int active_override;
@@ -28,7 +28,8 @@ int socket_setup(void) {
   /* Set non-blocking to avoid main loop stalls */
   int flags = fcntl(fd, F_GETFL, 0);
   if (flags < 0 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
-    syslog(LOG_ERR, "Failed to set non-blocking mode on socket: %s", strerror(errno));
+    syslog(LOG_ERR, "Failed to set non-blocking mode on socket: %s",
+           strerror(errno));
     close(fd);
     return -1;
   }
@@ -42,7 +43,8 @@ int socket_setup(void) {
   unlink(IPC_PATH);
 
   if (bind(fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_un)) < 0) {
-    syslog(LOG_ERR, "Failed to bind IPC socket to %s: %s", IPC_PATH, strerror(errno));
+    syslog(LOG_ERR, "Failed to bind IPC socket to %s: %s", IPC_PATH,
+           strerror(errno));
     close(fd);
     return -1;
   }
@@ -77,8 +79,10 @@ void socket_handle(int server_fd) {
       send(client_fd, current, strlen(current), MSG_NOSIGNAL);
     } else if (strncmp(buf, "DAEMON_INFO", 11) == 0) {
       char info[128];
-      printf_sn(info, sizeof(info), "STATE=%s;OVERRIDE=%d;BPF_ACTIVE=%d;REFRESH_INTERVAL=%.1f",
-                cfg.daemon_state, active_override, bpf_active ? 1 : 0, cfg.refresh_interval);
+      printf_sn(info, sizeof(info),
+                "STATE=%s;OVERRIDE=%d;BPF_ACTIVE=%d;REFRESH_INTERVAL=%.1f",
+                cfg.daemon_state, active_override, bpf_active ? 1 : 0,
+                cfg.refresh_interval);
       send(client_fd, info, strlen(info), MSG_NOSIGNAL);
     } else if (strncmp(buf, "TOGGLE", 6) == 0) {
       char current[32], *target;
@@ -90,7 +94,8 @@ void socket_handle(int server_fd) {
     } else if (strncmp(buf, "SET_MODE ", 9) == 0) {
       char *val = buf + 9;
       int matched = 1;
-      if (strstr(val, "auto") || strstr(val, "default") || strstr(val, "reset")) {
+      if (strstr(val, "auto") || strstr(val, "default") ||
+          strstr(val, "reset")) {
         active_override = 0;
       } else if (strstr(val, "cache")) {
         active_override = 1;
@@ -103,13 +108,36 @@ void socket_handle(int server_fd) {
       } else
         matched = 0;
       send(client_fd, matched ? "OK" : "ERR", matched ? 2 : 3, MSG_NOSIGNAL);
+    } else if (strncmp(buf, "GET_TOPOLOGY", 12) == 0) {
+      char cache_mask[128] = {0};
+      char freq_mask[128] = {0};
+      affinity_get_topology(cache_mask, freq_mask, sizeof(cache_mask));
+      char resp[512];
+      printf_sn(resp, sizeof(resp), "CACHE=%s;FREQ=%s", cache_mask, freq_mask);
+      send(client_fd, resp, strlen(resp), MSG_NOSIGNAL);
+    } else if (strncmp(buf, "SET_AFFINITY_CONFIG ", 20) == 0) {
+      char *cache = buf + 20;
+      char *freq = strchr(cache, ' ');
+      int ret = ERR_IO;
+      if (freq) {
+        *freq = '\0';
+        freq++;
+        ret = affinity_set_masks(cache, freq);
+        if (cfg.debug_enable) {
+          journal_debug("Affinity masks updated: cache=%s, freq=%s (result=%d)", cache, freq, ret);
+        }
+      }
+      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
+           (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_CPPC ", 9) == 0) {
       int ret = cppc_perf(atoi(buf + 9));
-      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR", (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
+      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
+           (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_BOOST ", 10) == 0) {
       int enable = (strstr(buf + 10, "on") != NULL);
       int ret = cppc_boost(enable);
-      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR", (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
+      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
+           (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_PARK ", 9) == 0) {
       char *target_str = buf + 9;
       int ret = ERR_SUCCESS;
@@ -122,7 +150,8 @@ void socket_handle(int server_fd) {
       } else {
         ret = cli_set_core(atoi(target_str), 0);
       }
-      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR", (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
+      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
+           (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_UNPARK ", 11) == 0) {
       char *target_str = buf + 11;
       int ret = ERR_SUCCESS;
@@ -131,14 +160,17 @@ void socket_handle(int server_fd) {
       } else {
         ret = cli_set_core(atoi(target_str), 1);
       }
-      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR", (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
+      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
+           (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_TDP ", 8) == 0) {
       int watts = atoi(buf + 8);
       int ret = cppc_tdp(watts);
-      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR", (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
+      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
+           (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_EPP ", 8) == 0) {
       int ret = cppc_epp(buf + 8);
-      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR", (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
+      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
+           (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_EPP_CCD ", 12) == 0) {
       char *ccd_str = buf + 12;
       char *val_str = strchr(ccd_str, ' ');
@@ -147,29 +179,35 @@ void socket_handle(int server_fd) {
         *val_str = '\0';
         ret = cppc_ccd(atoi(ccd_str), val_str + 1);
       }
-      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR", (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
+      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
+           (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_PSTATE ", 11) == 0) {
       int ret = cppc_pstate(buf + 11);
-      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR", (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
+      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
+           (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_GOVERNOR ", 13) == 0) {
       int ret = cppc_governor(buf + 13);
-      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR", (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
+      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
+           (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_PREFCORE ", 13) == 0) {
-      int enable = (strstr(buf + 13, "on") != NULL || strstr(buf + 13, "1") != NULL);
+      int enable =
+          (strstr(buf + 13, "on") != NULL || strstr(buf + 13, "1") != NULL);
       int ret = cppc_prefcore(enable);
-      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR", (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
+      send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
+           (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_DAEMON ", 11) == 0) {
       char *val = buf + 11;
-      if (strcmp(val, "manual") == 0 || strcmp(val, "auto") == 0 || strcmp(val, "default") == 0) {
+      if (strcmp(val, "manual") == 0 || strcmp(val, "auto") == 0 ||
+          strcmp(val, "default") == 0) {
         config_update("DAEMON_STATE", val);
         scat(cfg.daemon_state, val, sizeof(cfg.daemon_state));
 
         if (strcmp(val, "auto") == 0) {
           pid_t rpid = fork();
           if (rpid == 0) {
-            char *args[] = {(char *)"/bin/sh",
-                            (char *)"/usr/lib/x3d-toggle/scripts/tools/reset.sh",
-                            NULL};
+            char *args[] = {
+                (char *)"/bin/sh",
+                (char *)"/usr/lib/x3d-toggle/scripts/tools/reset.sh", NULL};
             char *envp[] = {(char *)"X3D_EXEC=1", NULL};
             execve(args[0], args, envp);
             _exit(EXIT_FAILURE);
@@ -179,7 +217,8 @@ void socket_handle(int server_fd) {
           }
         }
 
-        if (active_override != 0 && (strcmp(val, "auto") == 0 || strcmp(val, "default") == 0))
+        if (active_override != 0 &&
+            (strcmp(val, "auto") == 0 || strcmp(val, "default") == 0))
           active_override = 0;
         send(client_fd, "OK", 2, MSG_NOSIGNAL);
       } else

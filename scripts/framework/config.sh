@@ -46,6 +46,7 @@ guard "DEBUG_ENABLE"
 guard "DEV_ENABLE"
 guard "AFFINITY_LEVEL"
 guard "AFFINITY_MASK"
+guard "AFFINITY_FREQ_MASK"
 guard "FALLBACK_PROFILE"
 guard "DAEMON_STATE"
 guard "SERVER_ADDRESS"
@@ -83,6 +84,7 @@ if [ "$1" = "--update" ]; then
                     "DEV_ENABLE=${DEV_ENABLE}" \
                     "AFFINITY_LEVEL=${AFFINITY_LEVEL}" \
                     "AFFINITY_MASK=${AFFINITY_MASK}" \
+                    "AFFINITY_FREQ_MASK=${AFFINITY_FREQ_MASK}" \
                     "FALLBACK_PROFILE=${FALLBACK_PROFILE}" \
                     "DAEMON_STATE=${DAEMON_STATE}" \
                     "SERVER_ADDRESS=${SERVER_ADDRESS}" \
@@ -131,7 +133,9 @@ printf_step "2,${GEAR} Writing synchronized Configuration ruleset: build/config.
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#ifndef GUI_BUILD
 #include \"xui.h\"
+#endif
 
 #define CONFIG_PATH      \"${_DAEMON_CONF}\"
 #define GAMES_PATH       \"${_DAEMON_CONF}\"

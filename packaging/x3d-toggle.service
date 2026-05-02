@@ -7,10 +7,15 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=notify
+ExecStartPre=+/usr/bin/mkdir -p /sys/fs/cgroup/x3d-toggle
+ExecStartPre=+/usr/bin/chown x3d-toggle:x3d-toggle /sys/fs/cgroup/x3d-toggle
+ExecStartPre=+/bin/sh -c "echo +cpuset > /sys/fs/cgroup/cgroup.subtree_control || true"
+ExecStartPre=+/bin/sh -c "echo +cpuset > /sys/fs/cgroup/x3d-toggle/cgroup.subtree_control || true"
 ExecStart=/usr/bin/x3d-daemon
 Restart=on-failure
 RestartSec=10
 MemoryAccounting=yes
+Delegate=yes
 
 RuntimeDirectory=x3d-toggle
 RuntimeDirectoryMode=2770
