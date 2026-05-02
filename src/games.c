@@ -48,13 +48,13 @@ int games_load(gamelist *gl)
 
         const char *p = line;
         while (*p == ' ' || *p == '\t') p++;
-        if (*p == '\0' || *p == '#' || strlen(p) < 2) continue;
+        if (*p == '\0' || *p == '#' || strlen(p) < 2) goto skip_line;
 
         int dup = 0;
         for (int i = 0; i < gl->count; i++) {
             if (strcmp(gl->names[i], p) == 0) { dup = 1; break; }
         }
-        if (dup) continue;
+        if (dup) goto skip_line;
 
         size_t plen = strlen(p);
         if (plen >= GAME_NAME) plen = GAME_NAME - 1;
@@ -82,7 +82,8 @@ int games_match(const gamelist *gl, const char *comm)
 int game_add(const char *game) {
     if (!game) return ERR_SYNTAX;
     int fd = open(CONFIG_PATH, O_RDONLY);
-    char lines[1024][256];
+    char (*lines)[256] = malloc(sizeof(*lines) * 1024);
+    if (!lines) { if (fd >= 0) close(fd); return ERR_MEM; }
     int count = 0, found_usr = 0, found_sys = 0;
     int games_usr_idx = -1;
 
@@ -121,12 +122,15 @@ int game_add(const char *game) {
 
     if (found_sys || found_usr) {
         journal_info(GAME_ADDED, game, CONFIG_PATH);
+        free(lines);
         return ERR_SUCCESS;
     }
 
     if (games_usr_idx == -1) {
+        if (count >= 1024) { free(lines); return ERR_MEM; }
         printf_sn(lines[count++], 256, "\n[GAMES_USR]\n%s\n", game);
     } else {
+        if (count >= 1024) { free(lines); return ERR_MEM; }
         for (int j = count; j > games_usr_idx + 1; j--) {
             if (j < 1024) printf_sn(lines[j], 256, "%s", lines[j-1]);
         }
@@ -140,6 +144,7 @@ int game_add(const char *game) {
         close(out);
     }
     journal_info(GAME_ADDED, game, CONFIG_PATH);
+    free(lines);
     return ERR_SUCCESS;
 }
 

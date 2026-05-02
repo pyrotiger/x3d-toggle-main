@@ -13,6 +13,8 @@
 #include "libc.h"
 #include "modes.h"
 
+#define MAX_IPC_BUFFER_SIZE 512
+
 extern volatile sig_atomic_t active_keep;
 extern volatile int active_override;
 extern DaemonConfig cfg;
@@ -67,7 +69,7 @@ void socket_handle(int server_fd) {
   if (client_fd < 0)
     return;
 
-  char buf[512] = {0};
+  char buf[MAX_IPC_BUFFER_SIZE] = {0};
   if (recv(client_fd, buf, sizeof(buf) - 1, 0) > 0) {
     buf[strcspn(buf, "\r\n")] = 0;
 
@@ -79,10 +81,11 @@ void socket_handle(int server_fd) {
       send(client_fd, current, strlen(current), MSG_NOSIGNAL);
     } else if (strncmp(buf, "DAEMON_INFO", 11) == 0) {
       char info[256];
-      printf_sn(info, sizeof(info),
-                "STATE=%s;OVERRIDE=%d;BPF_ACTIVE=%d;REFRESH_INTERVAL=%.1f;MASK=%s",
-                cfg.daemon_state, active_override, bpf_active ? 1 : 0,
-                cfg.refresh_interval, cfg.affinity_mask);
+      printf_sn(
+          info, sizeof(info),
+          "STATE=%.31s;OVERRIDE=%d;BPF_ACTIVE=%d;REFRESH_INTERVAL=%.1f;MASK=%.127s",
+          cfg.daemon_state, active_override, bpf_active ? 1 : 0,
+          cfg.refresh_interval, cfg.affinity_mask);
       send(client_fd, info, strlen(info), MSG_NOSIGNAL);
     } else if (strncmp(buf, "TOGGLE", 6) == 0) {
       char current[32], *target;
@@ -219,6 +222,12 @@ void socket_handle(int server_fd) {
           } else if (rpid > 0) {
             int rst;
             (void)waitpid(rpid, &rst, 0);
+          } else {
+            int fork_errno = errno;
+            syslog(LOG_ERR, "fork() failed for reset.sh: %s", strerror(fork_errno));
+            send(client_fd, "ERR", 3, MSG_NOSIGNAL);
+            close(client_fd);
+            return;
           }
         }
 
