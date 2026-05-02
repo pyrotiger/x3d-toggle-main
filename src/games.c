@@ -12,6 +12,22 @@
 #define MAX_GAME_CFG_LINES 1024
 #define MAX_GAME_CFG_LINE_LENGTH 256
 
+static void trim_ws_inplace(char *s)
+{
+    if (!s) return;
+
+    char *start = s;
+    while (*start && isspace((unsigned char)*start))
+        start++;
+
+    char *end = start + strlen(start);
+    while (end > start && isspace((unsigned char)*(end - 1)))
+        end--;
+    *end = '\0';
+
+    if (start != s) memmove(s, start, (size_t)(end - start) + 1);
+}
+
 int games_load(gamelist *gl)
 {
     if (!gl) return 0;
@@ -83,10 +99,24 @@ int games_match(const gamelist *gl, const char *comm)
 }
 
 #define MAX_LINES 1024
+
+static int lines_expand(char (**lines)[256], int *cap)
+{
+    int new_cap = *cap * 2;
+    if (new_cap > MAX_LINES) new_cap = MAX_LINES;
+    if (new_cap <= *cap) return -1;
+    char (*tmp)[256] = realloc(*lines, sizeof(**lines) * new_cap);
+    if (!tmp) return -1;
+    *lines = tmp;
+    *cap = new_cap;
+    return 0;
+}
+
 int game_add(const char *game) {
     if (!game) return ERR_SYNTAX;
     int fd = open(CONFIG_PATH, O_RDONLY);
-    char (*lines)[256] = malloc(sizeof(*lines) * MAX_LINES);
+    int cap = (64 < MAX_LINES) ? 64 : MAX_LINES;
+    char (*lines)[256] = malloc(sizeof(*lines) * cap);
     if (!lines) { if (fd >= 0) close(fd); return ERR_MEM; }
     int count = 0, found_usr = 0, found_sys = 0;
     int games_usr_idx = -1;
@@ -113,6 +143,7 @@ int game_add(const char *game) {
                 } else {
                     char clean[256];
                     printf_sn(clean, sizeof(clean), "%s", ln);
+                    trim_ws_inplace(clean);
                     if (current_section == 1 && strcmp(clean, game) == 0) found_sys = 1;
                     if (current_section == 2 && strcmp(clean, game) == 0) found_usr = 1;
                 }
@@ -132,9 +163,15 @@ int game_add(const char *game) {
 
     if (games_usr_idx == -1) {
         if (count >= MAX_LINES) { free(lines); return ERR_MEM; }
+        if (count >= cap) {
+            if (lines_expand(&lines, &cap) != 0) { free(lines); return ERR_MEM; }
+        }
         printf_sn(lines[count++], 256, "\n[GAMES_USR]\n%s\n", game);
     } else {
         if (count >= MAX_LINES) { free(lines); return ERR_MEM; }
+        if (count >= cap) {
+            if (lines_expand(&lines, &cap) != 0) { free(lines); return ERR_MEM; }
+        }
         for (int j = count; j > games_usr_idx + 1; j--) {
             if (j < MAX_LINES) printf_sn(lines[j], 256, "%s", lines[j-1]);
         }
@@ -209,6 +246,10 @@ int game_remove(const char *game) {
         if (in_usr) {
             char clean[MAX_GAME_CFG_LINE_LENGTH];
             printf_sn(clean, sizeof(clean), "%s", lines[i]);
+            size_t len = strlen(clean);
+            while (len > 0 && (clean[len - 1] == '\n' || clean[len - 1] == '\r')) {
+                clean[--len] = '\0';
+            }
             if (strcmp(clean, game) == 0) continue;
         }
         printf_sn(new_lines[new_count++], MAX_GAME_CFG_LINE_LENGTH, "%s", lines[i]);

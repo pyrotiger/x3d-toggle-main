@@ -765,6 +765,50 @@ int toupper(int c) {
   return c;
 }
 
+int isspace(int c) {
+  return (c == ' ' || c == '\t' || c == '\n' || c == '\r' ||
+          c == '\f' || c == '\v');
+}
+
+long strtol(const char *p, char **e, int b) {
+  unsigned long r = 0;
+  int neg = 0;
+  while (*p == ' ' || *p == '\t')
+    p++;
+  if (*p == '-') { neg = 1; p++; }
+  else if (*p == '+') { p++; }
+  if (b == 0) {
+    if (*p == '0' && (*(p+1) == 'x' || *(p+1) == 'X')) { b = 16; p += 2; }
+    else if (*p == '0') { b = 8; p++; }
+    else b = 10;
+  } else if (b == 16 && *p == '0' && (*(p+1) == 'x' || *(p+1) == 'X')) {
+    p += 2;
+  }
+  const char *digits_start = p;
+  int overflow = 0;
+  unsigned long limit = neg ? ((unsigned long)LONG_MAX + 1UL) : (unsigned long)LONG_MAX;
+  while (*p) {
+    int v;
+    if (*p >= '0' && *p <= '9') v = *p - '0';
+    else if (*p >= 'a' && *p <= 'z') v = *p - 'a' + 10;
+    else if (*p >= 'A' && *p <= 'Z') v = *p - 'A' + 10;
+    else break;
+    if (v >= b) break;
+    if (!overflow && (r > (limit - (unsigned long)v) / (unsigned long)b)) {
+      overflow = 1;
+    }
+    if (!overflow) r = r * (unsigned long)b + (unsigned long)v;
+    p++;
+  }
+  if (p == digits_start) r = 0;
+  if (overflow) {
+    errno = ERANGE;
+    return neg ? LONG_MIN : LONG_MAX;
+  }
+  if (e) *e = (char *)p;
+  return neg ? -(long)r : (long)r;
+}
+
 unsigned long long strtoull(const char *p, char **e, int b) {
   unsigned long long r = 0;
   while (*p == ' ' || *p == '\t')

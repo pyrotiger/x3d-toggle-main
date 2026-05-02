@@ -209,8 +209,16 @@ void socket_handle(int server_fd) {
       send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
            (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_TDP ", 8) == 0) {
-      int watts = atoi(buf + 8);
-      int ret = cppc_tdp(watts);
+      char *endptr = NULL;
+      errno = 0;
+      long watts_long = strtol(buf + 8, &endptr, 10);
+      int ret = ERR_INVALID_ARGS;
+      if (endptr == buf + 8 || *endptr != '\0' || errno == ERANGE ||
+          watts_long < INT_MIN || watts_long > INT_MAX) {
+        ret = ERR_INVALID_ARGS;
+      } else {
+        ret = cppc_tdp((int)watts_long);
+      }
       send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
            (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
     } else if (strncmp(buf, "SET_EPP ", 8) == 0) {
@@ -222,8 +230,16 @@ void socket_handle(int server_fd) {
       char *val_str = strchr(ccd_str, ' ');
       int ret = ERR_IO;
       if (val_str) {
+        char *endptr = NULL;
+        errno = 0;
         *val_str = '\0';
-        ret = cppc_ccd(atoi(ccd_str), val_str + 1);
+        long ccd_long = strtol(ccd_str, &endptr, 10);
+        if (endptr == ccd_str || *endptr != '\0' || errno == ERANGE ||
+            ccd_long < INT_MIN || ccd_long > INT_MAX) {
+          ret = ERR_INVALID_ARGS;
+        } else {
+          ret = cppc_ccd((int)ccd_long, val_str + 1);
+        }
       }
       send(client_fd, (ret == ERR_SUCCESS) ? "OK" : "ERR",
            (ret == ERR_SUCCESS) ? 2 : 3, MSG_NOSIGNAL);
