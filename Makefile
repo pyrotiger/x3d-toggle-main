@@ -1,4 +1,3 @@
-#!/bin/sh
 ## `Makefile`
 ## Distribution Model: FHS-compliant, Lean and Stateless Build.
 ## Standardizes compilation and strict headless file deployment.
@@ -8,7 +7,7 @@
 CC             		 = clang
 CFLAGS        		?= -Wall -O2 -Wextra -D_GNU_SOURCE -fno-builtin -nostdlib -fno-stack-protector
 USER_CFLAGS          = -DBPF_NO_PRESERVE_ACCESS_INDEX
-LDFLAGS        		 = 
+LDFLAGS              = # intentionally empty; linker flags may be provided externally
 INCLUDES             = -Iinclude -Ibuild -Isrc/daemon -Isrc/cli -Isrc/daemon/polling -Isrc/daemon/bpf -DUSR_LIBS=\"$(USR_LIBS)\" -DVAR_LOGS=\"$(VAR_LOGS)\" -DVAR_AUDITS=\"$(VAR_AUDITS)\" -DVAR_DUMPS=\"$(VAR_DUMPS)\" -DDIR_BIN=\"$(DIR_BIN)\" -DDIR_RUN=\"$(DIR_RUN)\" 
 LIBS          		 = -lbpf -lsystemd -lpthread -lrt -pthread -lc
 CLI           		 = -DCLI_BUILD
@@ -142,7 +141,7 @@ endif
 	touch $(TARGET_FRAMEWORK)
 
 $(DIR_BUILD)/bpf.o: $(SRC_BPF)/bpf.c | prep
-	$(CC) $(CFLAGS) -target bpf -c $< -o $@
+	$(CC) $(CFLAGS) $(USER_CFLAGS) -target bpf -c $< -o $@
 
 $(TARGET_UI) $(TARGET_CCD) $(TARGET_CONFIG): $(TARGET_FRAMEWORK)
 build: $(TARGET_CLI) $(TARGET_DAEMON) $(TARGET_WRAPPER) $(DIR_BUILD)/bpf.o
@@ -215,9 +214,12 @@ install: build
 	install -dm755 $(DEST_APPS)
 	install -m644 packaging/x3d-toggle.desktop $(DEST_APPS)/x3d-toggle.desktop
 
-	@udevadm control --reload-rules && udevadm trigger
-	@systemd-sysusers
-	@systemd-tmpfiles --create $(DEST_TMPFILES)/x3d_toggle-tmpfiles.conf
+	@command -v udevadm >/dev/null 2>&1 || { echo "Error: 'udevadm' not found; cannot reload udev rules." >&2; exit 1; }
+	@udevadm control --reload-rules && udevadm trigger || { echo "Error: failed to reload/trigger udev rules." >&2; exit 1; }
+	@command -v systemd-sysusers >/dev/null 2>&1 || { echo "Error: 'systemd-sysusers' not found; cannot create system users/groups." >&2; exit 1; }
+	@systemd-sysusers || { echo "Error: systemd-sysusers failed." >&2; exit 1; }
+	@command -v systemd-tmpfiles >/dev/null 2>&1 || { echo "Error: 'systemd-tmpfiles' not found; cannot create tmpfiles entries." >&2; exit 1; }
+	@systemd-tmpfiles --create $(DEST_TMPFILES)/x3d_toggle-tmpfiles.conf || { echo "Error: systemd-tmpfiles --create failed for $(DEST_TMPFILES)/x3d_toggle-tmpfiles.conf." >&2; exit 1; }
 
 	@chown :x3d-toggle $(DEST_LOGS)
 	@chown :x3d-toggle $(DEST_AUDITS)

@@ -9,6 +9,13 @@
 
 #include "libc.h"
 
+#ifndef F_GETFD
+#define F_GETFD 3
+#endif
+#ifndef F_SETFD
+#define F_SETFD 4
+#endif
+
 #ifndef GUI_BUILD
 
 int errno = 0;
@@ -553,8 +560,8 @@ int select(int n, fd_set *rf, fd_set *wf, fd_set *ef, struct timeval *tv) {
 
 int fcntl(int fd, int cmd, ...) {
   long ret, arg = 0;
-  if (cmd == F_SETFL || cmd == F_GETFL || cmd == 4 /* F_SETFD */ ||
-      cmd == 3 /* F_GETFD */) {
+  if (cmd == F_SETFL || cmd == F_GETFL || cmd == F_SETFD ||
+      cmd == F_GETFD) {
     va_list args;
     va_start(args, cmd);
     arg = va_arg(args, long);
