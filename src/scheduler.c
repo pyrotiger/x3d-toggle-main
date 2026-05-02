@@ -7,17 +7,30 @@
 
 static int sysctl_write(const char *node, const char *value) {
     char path[128];
-    int n = snprintf(path, sizeof(path), "%s%s", PROC_KERNEL, node);
-    if (n < 0 || (size_t)n >= sizeof(path)) return -1;
-    
+    size_t expected = strlen(PROC_KERNEL) + strlen(node);
+    int n = printf_sn(path, sizeof(path), "%s%s", PROC_KERNEL, node);
+    if (n < 0 || (size_t)n != expected) return -1;
+
     int fd = open(path, O_WRONLY);
     if (fd < 0) return -1;
 
     size_t len = strlen(value);
-    ssize_t written = write(fd, value, len);
-    int close_res = close(fd);
+    size_t off = 0;
+    while (off < len) {
+        ssize_t bytes_written = write(fd, value + off, len - off);
+        if (bytes_written < 0) {
+            if (errno == EINTR) continue;
+            close(fd);
+            return -1;
+        }
+        if (bytes_written == 0) {
+            close(fd);
+            return -1;
+        }
+        off += (size_t)bytes_written;
+    }
 
-    if (written < 0 || (size_t)written != len || close_res < 0) return -1;
+    if (close(fd) < 0) return -1;
     return 0;
 }
 

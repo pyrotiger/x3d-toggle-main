@@ -34,6 +34,7 @@ extern int errno;
 #endif
 
 #define ENOENT  2
+#define EINTR   4
 #define EAGAIN 11
 #define EACCES 13
 #define ERANGE 34
