@@ -37,7 +37,7 @@ int socket_setup(void) {
   struct sockaddr_un addr;
   memset(&addr, 0, sizeof(struct sockaddr_un));
   addr.sun_family = AF_UNIX;
-  scat(addr.sun_path, IPC_PATH, sizeof(addr.sun_path));
+  printf_sn(addr.sun_path, sizeof(addr.sun_path), "%s", IPC_PATH);
 
   /* Ensure clean state for the socket file */
   unlink(IPC_PATH);
@@ -78,11 +78,11 @@ void socket_handle(int server_fd) {
       mode(current, sizeof(current));
       send(client_fd, current, strlen(current), MSG_NOSIGNAL);
     } else if (strncmp(buf, "DAEMON_INFO", 11) == 0) {
-      char info[128];
+      char info[256];
       printf_sn(info, sizeof(info),
-                "STATE=%s;OVERRIDE=%d;BPF_ACTIVE=%d;REFRESH_INTERVAL=%.1f",
+                "STATE=%s;OVERRIDE=%d;BPF_ACTIVE=%d;REFRESH_INTERVAL=%.1f;MASK=%s",
                 cfg.daemon_state, active_override, bpf_active ? 1 : 0,
-                cfg.refresh_interval);
+                cfg.refresh_interval, cfg.affinity_mask);
       send(client_fd, info, strlen(info), MSG_NOSIGNAL);
     } else if (strncmp(buf, "TOGGLE", 6) == 0) {
       char current[32], *target;
@@ -200,7 +200,7 @@ void socket_handle(int server_fd) {
       if (strcmp(val, "manual") == 0 || strcmp(val, "auto") == 0 ||
           strcmp(val, "default") == 0) {
         config_update("DAEMON_STATE", val);
-        scat(cfg.daemon_state, val, sizeof(cfg.daemon_state));
+        printf_sn(cfg.daemon_state, sizeof(cfg.daemon_state), "%s", val);
 
         if (strcmp(val, "auto") == 0) {
           pid_t rpid = fork();
@@ -236,7 +236,7 @@ void socket_handle(int server_fd) {
         else if (strcmp(kv, "LOAD_THRESHOLD") == 0)
           cfg.load_threshold = atof(v);
         else if (strcmp(kv, "SERVER_ADDRESS") == 0)
-          scat(cfg.server_address, v, sizeof(cfg.server_address));
+          printf_sn(cfg.server_address, sizeof(cfg.server_address), "%s", v);
         else if (strcmp(kv, "EBPF_ENABLE") == 0) {
           cfg.ebpf_enable = atoi(v);
           if (cfg.ebpf_enable && !bpf_active)
@@ -245,6 +245,8 @@ void socket_handle(int server_fd) {
             bpf_active = false;
             bpf_cleanup();
           }
+        } else if (strcmp(kv, "AFFINITY_MASK") == 0) {
+          printf_sn(cfg.affinity_mask, sizeof(cfg.affinity_mask), "%s", v);
         }
         send(client_fd, "OK", 2, MSG_NOSIGNAL);
       } else

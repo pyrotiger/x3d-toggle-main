@@ -97,8 +97,7 @@ int game_add(const char *game) {
             while (ln && *ln && count < 1024) {
                 nxt = strchr(ln, '\n');
                 if (nxt) *nxt = '\0';
-                scat(lines[count], ln, 255);
-                scat(lines[count], "\n", 256);
+                printf_sn(lines[count], 256, "%s\n", ln);
 
                 if (ln[0] == '[') {
                     if (strstr(ln, "[GAMES_SYS]")) current_section = 1;
@@ -108,7 +107,7 @@ int game_add(const char *game) {
                     } else current_section = 0;
                 } else {
                     char clean[256];
-                    scat(clean, ln, sizeof(clean));
+                    printf_sn(clean, sizeof(clean), "%s", ln);
                     if (current_section == 1 && strcmp(clean, game) == 0) found_sys = 1;
                     if (current_section == 2 && strcmp(clean, game) == 0) found_usr = 1;
                 }
@@ -129,7 +128,7 @@ int game_add(const char *game) {
         printf_sn(lines[count++], 256, "\n[GAMES_USR]\n%s\n", game);
     } else {
         for (int j = count; j > games_usr_idx + 1; j--) {
-            if (j < 1024) scat(lines[j], lines[j-1], 256);
+            if (j < 1024) printf_sn(lines[j], 256, "%s", lines[j-1]);
         }
         printf_sn(lines[games_usr_idx + 1], 256, "%s\n", game);
         count++;
@@ -161,8 +160,7 @@ int game_remove(const char *game) {
             while (ln && *ln && count < 1024) {
                 nxt = strchr(ln, "\n"[0]);
                 if (nxt) *nxt = '\0';
-                scat(lines[count], ln, 255);
-                scat(lines[count], "\n", 256);
+                printf_sn(lines[count], 256, "%s\n", ln);
 
                 if (ln[0] == '[') {
                     if (strstr(ln, "[GAMES_SYS]")) current_section = 1;
@@ -170,7 +168,7 @@ int game_remove(const char *game) {
                     else current_section = 0;
                 } else {
                     char clean[256];
-                    scat(clean, ln, sizeof(clean));
+                    printf_sn(clean, sizeof(clean), "%s", ln);
                     if (current_section == 1 && strcmp(clean, game) == 0) found_sys = 1;
                     if (current_section == 2 && strcmp(clean, game) == 0) found_usr = 1;
                 }
@@ -201,10 +199,10 @@ int game_remove(const char *game) {
 
         if (in_usr) {
             char clean[256];
-            scat(clean, lines[i], sizeof(clean));
+            printf_sn(clean, sizeof(clean), "%s", lines[i]);
             if (strcmp(clean, game) == 0) continue;
         }
-        scat(new_lines[new_count++], lines[i], 256);
+        printf_sn(new_lines[new_count++], 256, "%s", lines[i]);
     }
 
     int out = open(CONFIG_PATH, O_WRONLY | O_TRUNC | O_CREAT, 0664);

@@ -1,7 +1,5 @@
 /* CLI Worker Transport Layer for the X3D Toggle Project
- *
  * `worker.c`
- *
  * Provides the transport mechanisms for CLI-to-Daemon communication.
  * Hardened with explicit stderr tracking to prevent silent UI failures.
  */
@@ -9,6 +7,7 @@
 #include "ipc.h"
 #include "error.h"
 #include "systemd.h"
+#include "xui.h"
 
 int socket_send(const char *cmd, char *response, size_t resp_len) {
     int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
@@ -20,7 +19,7 @@ int socket_send(const char *cmd, char *response, size_t resp_len) {
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    scat(addr.sun_path, IPC_PATH, sizeof(addr.sun_path));
+    printf_sn(addr.sun_path, sizeof(addr.sun_path), "%s", IPC_PATH);
 
     if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         if (errno == EACCES) {
@@ -75,7 +74,7 @@ int socket_probe(void) {
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    scat(addr.sun_path, IPC_PATH, sizeof(addr.sun_path));
+    printf_sn(addr.sun_path, sizeof(addr.sun_path), "%s", IPC_PATH);
 
     if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         close(fd);

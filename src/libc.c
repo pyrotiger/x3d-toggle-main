@@ -796,22 +796,6 @@ size_t strlcat_local(char *dst, const char *src, size_t size) {
   return res;
 }
 
-size_t scat(char *dest, const char *src, size_t dest_size) {
-  if (!dest || !src || dest_size == 0)
-    return 0;
-  size_t i = 0;
-  while (src[i] != '\0' && src[i] != '\n' && src[i] != '\r' &&
-         i < (dest_size - 1)) {
-    dest[i] = src[i];
-    i++;
-  }
-  dest[i] = '\0';
-  while (i > 0 && (dest[i - 1] == ' ' || dest[i - 1] == '\t')) {
-    i--;
-    dest[i] = '\0';
-  }
-  return i;
-}
 
 extern void journal_syslog(int priority, const char *summary, const char *ctx);
 extern int printf_vsn(char *buf, size_t size, const char *fmt, va_list args);

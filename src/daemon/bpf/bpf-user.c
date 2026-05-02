@@ -55,7 +55,6 @@ static int handle_event(void *ctx, void *data, size_t data_sz) {
   return 0;
 }
 
-/* --- GameMode D-Bus Event Handler --- */
 static int on_gamemode_signal(sd_bus_message *m, void *userdata,
                               sd_bus_error *ret_error) {
   (void)userdata;
@@ -78,14 +77,12 @@ static int on_gamemode_signal(sd_bus_message *m, void *userdata,
   return 0;
 }
 
-/* Zero-overhead background thread for D-Bus */
 static void *gamemode_listener_thread(void *arg) {
   (void)arg;
   sd_bus *bus = NULL;
   char bus_path[128];
   bool connected = false;
 
-  /* Attempt to discover the active user's session bus */
   for (int uid = 1000; uid < 1010; uid++) {
     printf_sn(bus_path, sizeof(bus_path), "unix:path=/run/user/%d/bus", uid);
     if (sd_bus_new(&bus) >= 0) {
@@ -100,18 +97,15 @@ static void *gamemode_listener_thread(void *arg) {
   }
 
   if (connected && bus) {
-    /* Subscribe to GameMode startup signals */
     sd_bus_match_signal(bus, NULL, NULL, /* Match any sender */
                         "/com/feralinteractive/GameMode",
                         "com.feralinteractive.GameMode", "GameRegistered",
                         on_gamemode_signal, NULL);
 
-    /* Subscribe to GameMode exit signals */
     sd_bus_match_signal(bus, NULL, NULL, "/com/feralinteractive/GameMode",
                         "com.feralinteractive.GameMode", "GameUnregistered",
                         on_gamemode_signal, NULL);
 
-    /* Infinite loop that blocks (0% CPU) until a message arrives */
     while (true) {
       sd_bus_process(bus, NULL);
       sd_bus_wait(bus, (uint64_t)-1);
@@ -121,9 +115,7 @@ static void *gamemode_listener_thread(void *arg) {
   return NULL;
 }
 
-/* --- Initialization --- */
 bool bpf_init(void) {
-  /* Spawn the detached D-Bus listener for GameMode regardless of eBPF success */
   pthread_t tid;
   if (pthread_create(&tid, NULL, gamemode_listener_thread, NULL) == 0) {
     pthread_detach(tid);

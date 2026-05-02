@@ -244,15 +244,15 @@ void config_load(DaemonConfig *cfg) {
   cfg->refresh_interval = CONFIG_REFRESH_INTERVAL;
   cfg->dev_enable = CONFIG_DEV_ENABLE;
   cfg->affinity_level = CONFIG_AFFINITY_LEVEL;
-  scat(cfg->affinity_mask, CONFIG_AFFINITY_MASK, 63);
+  printf_sn(cfg->affinity_mask, 63, "%s", CONFIG_AFFINITY_MASK);
 
   cfg->load_threshold = CONFIG_LOAD_THRESHOLD;
   cfg->detection_level = CONFIG_DETECTION_LEVEL;
   cfg->ebpf_enable = CONFIG_EBPF_ENABLE;
   cfg->debug_enable = CONFIG_DEBUG_ENABLE;
-  scat(cfg->daemon_state, "default", 31);
-  scat(cfg->fallback_profile, CONFIG_FALLBACK_PROFILE, 63);
-  scat(cfg->server_address, CONFIG_SERVER_ADDRESS, 127);
+  printf_sn(cfg->daemon_state, 31, "default");
+  printf_sn(cfg->fallback_profile, 63, "%s", CONFIG_FALLBACK_PROFILE);
+  printf_sn(cfg->server_address, 127, "%s", CONFIG_SERVER_ADDRESS);
 
   int fd = open(DAEMON_CONF_PATH, O_RDONLY);
   if (fd < 0) {
@@ -280,9 +280,9 @@ void config_load(DaemonConfig *cfg) {
             else if (strcmp(ln, "DETECTION_LEVEL") == 0) cfg->detection_level = atoi(val);
             else if (strcmp(ln, "EBPF_ENABLE") == 0) cfg->ebpf_enable = atoi(val);
             else if (strcmp(ln, "DEBUG_ENABLE") == 0) cfg->debug_enable = atoi(val);
-            else if (strcmp(ln, "DAEMON_STATE") == 0) scat(cfg->daemon_state, val, 31);
-            else if (strcmp(ln, "FALLBACK_PROFILE") == 0) scat(cfg->fallback_profile, val, 63);
-            else if (strcmp(ln, "SERVER_ADDRESS") == 0) scat(cfg->server_address, val, 127);
+            else if (strcmp(ln, "DAEMON_STATE") == 0) printf_sn(cfg->daemon_state, 31, "%s", val);
+            else if (strcmp(ln, "FALLBACK_PROFILE") == 0) printf_sn(cfg->fallback_profile, 63, "%s", val);
+            else if (strcmp(ln, "SERVER_ADDRESS") == 0) printf_sn(cfg->server_address, 127, "%s", val);
           }
         }
         ln = nxt ? nxt + 1 : (void*)0;

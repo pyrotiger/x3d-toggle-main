@@ -215,7 +215,6 @@ double atof(const char *s);
 unsigned long long strtoull(const char *p, char **e, int b);
 int toupper(int c);
 size_t strlcat_local(char *dst, const char *src, size_t size);
-size_t scat(char *dest, const char *src, size_t dest_size);
 
 char *getenv(const char *name);
 void openlog(const char *ident, int option, int facility);

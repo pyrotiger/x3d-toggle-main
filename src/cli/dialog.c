@@ -176,13 +176,13 @@ int cli_diag_status(int argc, char *argv[]) {
   char color_reset[BUFF_RESET] = "";
   char br[BUFF_BR] = "";
 
-  if (is_gui) {
-    scat(color_cyan, HTML_CYAN, 32);
-    scat(color_reset, HTML_RESET, 32);
-    scat(br, "<br>", 16);
+  if (getenv("X3D_XUI_HTML")) {
+    printf_sn(color_cyan, 32, "%s", HTML_CYAN);
+    printf_sn(color_reset, 32, "%s", HTML_RESET);
+    printf_sn(br, 16, "<br>");
   } else {
-    scat(color_cyan, COLOR_CYAN, 32);
-    scat(color_reset, COLOR_RESET, 32);
+    printf_sn(color_cyan, 32, "%s", COLOR_CYAN);
+    printf_sn(color_reset, 32, "%s", COLOR_RESET);
   }
 
   if (is_gui)

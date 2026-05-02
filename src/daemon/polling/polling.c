@@ -98,11 +98,11 @@ void polling_run(CPUStats *p_stat, CPUStats *c_stat, char *current, char *target
       pg = detect_game();
 
       if (active_override == 1)
-        scat(target, "cache", 32);
+        printf_sn(target, 32, "cache");
       else if (active_override == 2)
-        scat(target, "frequency", 32);
+        printf_sn(target, 32, "frequency");
       else
-        scat(target, (eg || pg) ? "cache" : "frequency", 32);
+        printf_sn(target, 32, "%s", (eg || pg) ? "cache" : "frequency");
 
       target[31] = '\0';
 
@@ -110,21 +110,21 @@ void polling_run(CPUStats *p_stat, CPUStats *c_stat, char *current, char *target
         cli_set_mode(target);
       }
     } else {
-      scat(target, current, 32);
+      printf_sn(target, 32, "%s", current);
       target[31] = '\0';
     }
 
     char display_target[32] = "";
-    scat(display_target, target, sizeof(display_target));
+    printf_sn(display_target, sizeof(display_target), "%s", target);
 
     if (active_override == 3)
-      scat(display_target, "dual", sizeof(display_target));
+      printf_sn(display_target, sizeof(display_target), "dual");
     if (active_override == 4)
-      scat(display_target, "swap", sizeof(display_target));
+      printf_sn(display_target, sizeof(display_target), "swap");
 
     static char last_target[32] = "";
     if (strcmp(display_target, last_target) != 0) {
-      scat(last_target, display_target, sizeof(last_target));
+      printf_sn(last_target, sizeof(last_target), "%s", display_target);
       journal_debug("State Transition: Target: %s | Mode: %s", 
                 display_target, cfg.daemon_state);
     }

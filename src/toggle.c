@@ -38,7 +38,7 @@ static void printf_help(void) {
     char alias_buf[16] = "";
     for (int j = 0; cmd_table[j].name != NULL; j++) {
       if (cmd_table[i].handler == cmd_table[j].handler && i != j) {
-        scat(alias_buf, cmd_table[j].name, sizeof(alias_buf));
+        printf_sn(alias_buf, sizeof(alias_buf), "%s", cmd_table[j].name);
         break;
       }
     }

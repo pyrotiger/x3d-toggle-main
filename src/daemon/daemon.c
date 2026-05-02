@@ -1,7 +1,5 @@
 /* Automation backend for the X3D Toggle Project
- *
  * `daemon.c`
- *
  * Orchestrates the logistics of automated polling and eBPF functionality
  * while ensuring user-defined settings are persistent. Mimics the behavior
  * of the native Windows driver by deterministically switching CCD priority.
@@ -54,10 +52,9 @@ int daemon(int argc, char *argv[]) {
   cli_set_mode("frequency");
 
   if (strlen(cfg.daemon_state) == 0) {
-    scat(cfg.daemon_state, "default", sizeof(cfg.daemon_state));
+    printf_sn(cfg.daemon_state, sizeof(cfg.daemon_state), "default");
   }
 
-  /* Enforce startup baseline: Default to Frequency (Throughput) */
   if (strcmp(cfg.daemon_state, "default") == 0) {
     cli_set_mode("frequency");
   }
@@ -265,3 +262,5 @@ int cli_daemon_disable(int argc, char *argv[]) {
   journal_error(res, "Could not disable x3d-toggle.service via DBus.");
   return 1;
 }
+
+/* end of DAEMON.C  */

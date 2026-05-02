@@ -1,7 +1,5 @@
 /* Logging & Diagnostics for the X3D Toggle Project
- *
  * `diag.c` - Backend Migration
- *
  * IPC Command and Status Verifications
  */
 
@@ -82,7 +80,6 @@ int cli_diag_linter(int argc, char *argv[]) {
   return ERR_IO;
 }
 
-// is this redundant code??
 void launch_debug_observer(void) {
   pid_t pid = fork();
   if (pid == 0) {

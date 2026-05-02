@@ -1,7 +1,5 @@
 /* Scaling heuristics & P-State & EPP Management for the X3D Toggle Project
- *
  * `cppc.c` - Backend Migration
- * 
  * Advanced Featureset: Handles EPP values, amd_pstate operational modes, preferred core toggles, and frequency governors via IPC.
  */
 

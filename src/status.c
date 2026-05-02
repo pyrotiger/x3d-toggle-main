@@ -1,7 +1,5 @@
 /* Status reporting model for the X3D Toggle Project
- *
  * `status.c`
- *
  * Parses and passes relevant indicators for topology and modes to frontend
  */
 
@@ -52,7 +50,7 @@ double status_cpu(CPUStats *prev, CPUStats *curr) {
 static void status_sysfs(const char *path, char *out, size_t max_len) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
-    scat(out, "N/A", max_len);
+    printf_sn(out, max_len, "N/A");
     return;
   }
   ssize_t n = read(fd, out, max_len - 1);
@@ -62,7 +60,7 @@ static void status_sysfs(const char *path, char *out, size_t max_len) {
       if (out[i] == '\n' || out[i] == '\r')
         out[i] = '\0';
   } else {
-    scat(out, "N/A", max_len);
+    printf_sn(out, max_len, "N/A");
   }
   close(fd);
 }
@@ -127,7 +125,7 @@ int daemon_status(Status *st) {
     close(fd);
   }
 
-  scat(st->c_mode, c_mode_raw, sizeof(st->c_mode));
+  printf_sn(st->c_mode, sizeof(st->c_mode), "%s", c_mode_raw);
   status_upper(st->c_mode);
 
   status_sysfs("/sys/devices/system/cpu/amd_pstate/status", st->d_buff, sizeof(st->d_buff));
@@ -138,7 +136,7 @@ int daemon_status(Status *st) {
 
   char bst_raw[BUFF_RAW];
   status_sysfs("/sys/devices/system/cpu/cpufreq/boost", bst_raw, sizeof(bst_raw));
-  scat(st->st_buff, (strcmp(bst_raw, "1") == 0) ? "ENABLED" : "DISABLED", sizeof(st->st_buff));
+  printf_sn(st->st_buff, sizeof(st->st_buff), "%s", (strcmp(bst_raw, "1") == 0) ? "ENABLED" : "DISABLED");
 
   status_upper(st->d_buff);
   status_upper(st->epp);
@@ -147,9 +145,10 @@ int daemon_status(Status *st) {
   status_upper(st->plat);
   status_upper(st->st_buff);
 
-  scat(st->daemon_state, "MANUAL", sizeof(st->daemon_state));
-  scat(st->ebpf_status, "DYNAMIC POLLING", sizeof(st->ebpf_status));
+  printf_sn(st->daemon_state, sizeof(st->daemon_state), "MANUAL");
+  printf_sn(st->ebpf_status, sizeof(st->ebpf_status), "DYNAMIC POLLING");
   int live_override = -1;
+  int affinity_active = 0;
   char live_info[BUFF_INFO] = "";
 
   if (daemon_state == 0 && socket_send("DAEMON_INFO", live_info, sizeof(live_info)) == 0) {
@@ -157,18 +156,20 @@ int daemon_status(Status *st) {
     char *ov_val = strstr(live_info, "OVERRIDE=");
     char *ba_val = strstr(live_info, "BPF_ACTIVE=");
     char *ri = strstr(live_info, "REFRESH_INTERVAL=");
+    char *mk = strstr(live_info, "MASK=");
 
     if (st_val) {
-      scat(st->daemon_state, st_val + 6, sizeof(st->daemon_state));
+      printf_sn(st->daemon_state, sizeof(st->daemon_state), "%s", st_val + 6);
       char *sc = strchr(st->daemon_state, ';');
       if (sc) *sc = '\0';
     }
     if (ov_val)
       live_override = atoi(ov_val + 9);
+    if (mk && strncmp(mk + 5, "none", 4) != 0)
+      affinity_active = 1;
     if (ba_val)
-      scat(st->ebpf_status,
-              (atoi(ba_val + 11) ? "eBPF (Active)" : "Polling (Fallback)"),
-              sizeof(st->ebpf_status));
+      printf_sn(st->ebpf_status, sizeof(st->ebpf_status), "%s",
+              (atoi(ba_val + 11) ? "eBPF (Active)" : "Polling (Fallback)"));
     if (ri)
       st->refresh_interval = atof(ri + 17);
     else
@@ -176,8 +177,7 @@ int daemon_status(Status *st) {
 
     status_upper(st->daemon_state);
     if (strcmp(st->daemon_state, "DEFAULT") != 0) {
-      scat(st->ebpf_status, "INACTIVE (MANUAL OVERRIDE)",
-              sizeof(st->ebpf_status));
+      printf_sn(st->ebpf_status, sizeof(st->ebpf_status), "INACTIVE (MANUAL OVERRIDE)");
     }
   } else {
     int fd_conf = open(CONFIG_PATH, O_RDONLY);
@@ -193,8 +193,12 @@ int daemon_status(Status *st) {
           if (nxt)
             *nxt = '\0';
           if (strncmp(line, "DAEMON_STATE=", 13) == 0) {
-            scat(st->daemon_state, line + 13, sizeof(st->daemon_state));
+            printf_sn(st->daemon_state, sizeof(st->daemon_state), "%s", line + 13);
             status_upper(st->daemon_state);
+          }
+          if (strncmp(line, "AFFINITY_MASK=", 14) == 0) {
+            if (strcmp(line + 14, "none") != 0)
+              affinity_active = 1;
           }
           if (nxt)
             line = nxt + 1;
@@ -202,9 +206,9 @@ int daemon_status(Status *st) {
             break;
         }
         if (strcmp(st->daemon_state, "DEFAULT") == 0) {
-          scat(st->ebpf_status, "eBPF/POLLING (ACTIVE)", sizeof(st->ebpf_status));
+          printf_sn(st->ebpf_status, sizeof(st->ebpf_status), "eBPF/POLLING (ACTIVE)");
         } else {
-          scat(st->ebpf_status, "INACTIVE (SUSPENDED)", sizeof(st->ebpf_status));
+          printf_sn(st->ebpf_status, sizeof(st->ebpf_status), "INACTIVE (SUSPENDED)");
         }
       }
       close(fd_conf);
@@ -212,66 +216,69 @@ int daemon_status(Status *st) {
   }
 
 
-  scat(st->st_buff_ccd0, ccd0_st, sizeof(st->st_buff_ccd0));
-  scat(st->st_buff_ccd1, ccd1_st, sizeof(st->st_buff_ccd1));
+  printf_sn(st->st_buff_ccd0, sizeof(st->st_buff_ccd0), "%s", ccd0_st);
+  printf_sn(st->st_buff_ccd1, sizeof(st->st_buff_ccd1), "%s", ccd1_st);
 
   st->c_icon = QUERY;
   if (strstr(st->c_mode, "CACHE")) {
     st->c_icon = CACHED;
-    scat(st->c_mode, "CACHE", sizeof(st->c_mode));
+    printf_sn(st->c_mode, sizeof(st->c_mode), "CACHE");
   } else if (strstr(st->c_mode, "FREQUENCY")) {
     st->c_icon = FREQU;
-    scat(st->c_mode, "FREQUENCY", sizeof(st->c_mode));
+    printf_sn(st->c_mode, sizeof(st->c_mode), "FREQUENCY");
   } else if (strstr(st->c_mode, "AUTO") || strstr(st->c_mode, "CPPC")) {
     st->c_icon = CHICKEN;
-    scat(st->c_mode, "CPPC", sizeof(st->c_mode));
+    printf_sn(st->c_mode, sizeof(st->c_mode), "CPPC");
   } else {
     st->c_icon = QUERY;
-    scat(st->c_mode, "UNKNOWN", sizeof(st->c_mode));
+    printf_sn(st->c_mode, sizeof(st->c_mode), "UNKNOWN");
   }
 
   st->ccd_icon = HUT;
-  scat(st->ccd_state, "OPTIMIZED", sizeof(st->ccd_state));
-  if (strcmp(ccd1_st, "ONLINE") == 0) {
+  printf_sn(st->ccd_state, sizeof(st->ccd_state), "OPTIMIZED");
+  if (affinity_active) {
+    st->ccd_icon = PINNED;
+    printf_sn(st->ccd_state, sizeof(st->ccd_state), "AFFINITY PINNED");
+  } else if (strcmp(ccd1_st, "ONLINE") == 0) {
     if (live_override == 4) {
       st->ccd_icon = TOPSWAP;
-      scat(st->ccd_state, "INVERTED", sizeof(st->ccd_state));
+      printf_sn(st->ccd_state, sizeof(st->ccd_state), "INVERTED");
     } else {
       st->ccd_icon = DUALIZE;
-      scat(st->ccd_state, "FULL THROUGHPUT", sizeof(st->ccd_state));
+      printf_sn(st->ccd_state, sizeof(st->ccd_state), "FULL THROUGHPUT");
     }
   } else {
     st->ccd_icon = PINNED;
-    scat(st->ccd_state, "CCD ISOLATED", sizeof(st->ccd_state));
+    printf_sn(st->ccd_state, sizeof(st->ccd_state), "CCD ISOLATED");
   }
 
   if (daemon_state == 0) {
-    scat(st->ipc_status, "SOCKET ONLINE", sizeof(st->ipc_status));
+    printf_sn(st->ipc_status, sizeof(st->ipc_status), "SOCKET ONLINE");
     if (strcmp(st->daemon_state, "DEFAULT") == 0) {
       st->d_icon = CHICKEN;
-      scat(st->d_mode, "ACTIVE", sizeof(st->d_mode));
+      printf_sn(st->d_mode, sizeof(st->d_mode), "ACTIVE");
     } else if (strcmp(st->daemon_state, "HARD_RESET") == 0 || strcmp(st->daemon_state, "AUTO") == 0) {
       st->d_icon = STOPSIGN;
-      scat(st->d_mode, "CPPC NATIVE", sizeof(st->d_mode));
+      printf_sn(st->d_mode, sizeof(st->d_mode), "CPPC NATIVE");
     } else {
       st->d_icon = MANUAL;
-      scat(st->d_mode, "SUSPENDED", sizeof(st->d_mode));
+      printf_sn(st->d_mode, sizeof(st->d_mode), "SUSPENDED");
     }
   } else if (daemon_state == 2) {
     st->d_icon = XOUT;
-    scat(st->ipc_status, "SOCKET OFFLINE", sizeof(st->ipc_status));
-    scat(st->d_mode, "FAILED (NO IPC)", sizeof(st->d_mode));
-    scat(st->ebpf_status, "INACTIVE", sizeof(st->ebpf_status));
+    printf_sn(st->ipc_status, sizeof(st->ipc_status), "SOCKET OFFLINE");
+    printf_sn(st->d_mode, sizeof(st->d_mode), "FAILED (NO IPC)");
+    printf_sn(st->ebpf_status, sizeof(st->ebpf_status), "INACTIVE");
   } else if (daemon_state == 3) {
     st->d_icon = PADLOCK;
-    scat(st->ipc_status, "ACCESS DENIED", sizeof(st->ipc_status));
-    scat(st->d_mode, "PERMISSION ERROR", sizeof(st->d_mode));
-    scat(st->ebpf_status, "INACTIVE (RE-AUTH REQ)", sizeof(st->ebpf_status));
+    printf_sn(st->ipc_status, sizeof(st->ipc_status), "ACCESS DENIED");
+    printf_sn(st->d_mode, sizeof(st->d_mode), "PERMISSION ERROR");
+    printf_sn(st->ebpf_status, sizeof(st->ebpf_status), "INACTIVE (RE-AUTH REQ)");
   } else {
     st->d_icon = STOPSIGN;
-    scat(st->ipc_status, "SOCKET OFFLINE", sizeof(st->ipc_status));
-    scat(st->d_mode, "STOPPED", sizeof(st->d_mode));
-    scat(st->ebpf_status, "INACTIVE", sizeof(st->ebpf_status));
+    printf_sn(st->ipc_status, sizeof(st->ipc_status), "SOCKET OFFLINE");
+    printf_sn(st->d_mode, sizeof(st->d_mode), "STOPPED");
+    printf_sn(st->ebpf_status, sizeof(st->ebpf_status), "INACTIVE");
   }
   return 0;
 }
