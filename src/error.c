@@ -1,7 +1,5 @@
 /* Error Handling Logic for the X3D Toggle Project
- *
  * `error.c`
- *
  * Handles all stdout, stderr and logging routing logic.
  * Also implements an error handling dispatch table for diagnostics. 
  */
@@ -116,10 +114,9 @@ void journal_syslog(int priority, const char *summary, const char *ctx) {
   }
   if (syslog_fd < 0) return;
 
-  struct sockaddr_un addr;
-  memset(&addr, 0, sizeof(addr));
+  struct sockaddr_un addr = {0};
   addr.sun_family = AF_UNIX;
-  scat(addr.sun_path, "/run/systemd/journal/socket", sizeof(addr.sun_path));
+  printf_sn(addr.sun_path, sizeof(addr.sun_path), "/run/systemd/journal/socket");
 
   char buf[2048];
   int len = printf_sn(buf, sizeof(buf),
@@ -215,7 +212,8 @@ void journal_warn(error_code code, ...) {
     char tmp[2048];
     printf_sn(tmp, sizeof(tmp), "        ${COLOR_YELLOW}${WARN} [X3D-%d] %s: ${COLOR_RESET}%s\n",
              (int)code < 0 ? -(int)code : (int)code, msg.summary, ctx);
-    scat(buffer_deferred, tmp, sizeof(buffer_deferred));
+    size_t len = strlen(buffer_deferred);
+    printf_sn(buffer_deferred + len, sizeof(buffer_deferred) - len, "%s", tmp);
   } else {
     printf_step("2,${COLOR_YELLOW}${WARN} Warning: ${COLOR_RESET}%s. [X3D-%d]",
                 msg.summary,

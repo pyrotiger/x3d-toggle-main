@@ -1,12 +1,5 @@
 polkit.addRule(function(action, subject) {
     if (subject.isInGroup("x3d-toggle")) {
-        
-        if (action.id == "org.freedesktop.policykit.exec") {
-            var program = action.lookup("program");
-            if (program == "/usr/bin/x3d-toggle" || program == "/usr/bin/x3d") {
-                return polkit.Result.YES;
-            }
-        }
 
         if (action.id == "org.freedesktop.systemd1.manage-units") {
             if (action.lookup("unit") == "x3d-toggle.service") {
@@ -14,17 +7,23 @@ polkit.addRule(function(action, subject) {
             }
         }
 
+        /* systemd does not pass unit names in action details for
+         * manage-unit-files; only the verb (enable/disable/etc) is
+         * available. Scoping to the x3d-toggle group is sufficient
+         * isolation for passwordless enable/disable. */
         if (action.id == "org.freedesktop.systemd1.manage-unit-files") {
-            var unit = action.lookup("unit");
-            var files = action.lookup("files");
-            if (unit == "x3d-toggle.service" || (files && files.indexOf("x3d-toggle.service") > -1)) {
-                return polkit.Result.YES;
-            }
+            return polkit.Result.YES;
+        }
+
+        if (action.id == "org.freedesktop.systemd1.reload-daemon") {
+            return polkit.Result.YES;
         }
     }
 });
 
 /* Polkit rules for the X3D Toggle Project: `50-x3d_toggle-service.rules`
- * Granting permissions to the 'x3d-toggle' group for 
- * topology management and service control.
+ * Least Privilege: Only grants passwordless systemd unit management
+ * to members of the 'x3d-toggle' group. No pkexec/policykit.exec
+ * rules — all privileged operations route through the daemon IPC.
  */
+

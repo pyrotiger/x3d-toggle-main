@@ -8,11 +8,9 @@
 
 #include "libc.h" // IWYU pragma: keep
 
-
 #define IPC_PATH "/run/x3d-toggle/x3d-toggle.ipc"
 #define MAX_CONNECTIONS 128
 #define IPC_GROUP "x3d-toggle"
-
 
 int socket_send(const char *cmd, char *response, size_t resp_len);
 int socket_probe(void);

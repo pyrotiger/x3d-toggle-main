@@ -1,7 +1,5 @@
-/* Astraction Layer Systemd Integration for the X3D Toggle Project
- *
+/* Abstraction Layer Systemd Integration for the X3D Toggle Project
  * `systemd.c`
- *
  * System wrapper that handles the volatile flag management of the backend.
  * Utilizes direct systemctl execution via fork/execve.
  */
@@ -12,6 +10,7 @@
 #include "error.h"
 
 #define SERVICE_UNIT "x3d-toggle.service"
+#define LOG_BUFFER_SIZE 128
 #ifndef VAR_LOGS
 #define VAR_LOGS "/var/log/x3d-toggle/logs"
 #endif
@@ -21,30 +20,28 @@
 
 extern char **environ;
 
-/*
- * Zero-Dependency Unit Management:
- * Executes systemctl commands via direct fork/execve primitives to maintain
- * a pure libc-free architecture without libsystemd linkage.
- */
+static void redirect_systemctl_stdio(void) {
+  int null_fd = open("/dev/null", O_WRONLY);
+  if (null_fd >= 0) {
+    dup2(null_fd, 1);
+    close(null_fd);
+  }
+
+  int log_fd = open(VAR_LOGS "/systemd-exec.log", O_WRONLY | O_CREAT | O_APPEND,
+                    0664);
+  if (log_fd >= 0) {
+    dup2(log_fd, 2);
+    close(log_fd);
+  }
+}
+
 static int execute_unit_method(const char *method) {
   pid_t pid = fork();
   if (pid < 0)
     return ERR_IO;
 
   if (pid == 0) {
-    /* Silence stdout for CLI cleanliness */
-    int null_fd = open("/dev/null", O_WRONLY);
-    if (null_fd >= 0) {
-      dup2(null_fd, 1);
-      close(null_fd);
-    }
-    /* Route stderr to session log for journal capture */
-    int log_fd = open(VAR_LOGS "/systemd-exec.log",
-                      O_WRONLY | O_CREAT | O_APPEND, 0664);
-    if (log_fd >= 0) {
-      dup2(log_fd, 2);
-      close(log_fd);
-    }
+    redirect_systemctl_stdio();
     char *args[] = {(char *)"/usr/bin/systemctl", (char *)method,
                     (char *)SERVICE_UNIT, NULL};
     execve(args[0], args, environ);
@@ -69,19 +66,7 @@ int unit_active(void) {
     return 0;
 
   if (pid == 0) {
-    /* Silence stdout for CLI cleanliness */
-    int null_fd = open("/dev/null", O_WRONLY);
-    if (null_fd >= 0) {
-      dup2(null_fd, 1);
-      close(null_fd);
-    }
-    /* Route stderr to session log for journal capture */
-    int log_fd = open(VAR_LOGS "/systemd-exec.log",
-                      O_WRONLY | O_CREAT | O_APPEND, 0664);
-    if (log_fd >= 0) {
-      dup2(log_fd, 2);
-      close(log_fd);
-    }
+    redirect_systemctl_stdio();
     char *args[] = {(char *)"/usr/bin/systemctl", (char *)"is-active",
                     (char *)SERVICE_UNIT, NULL};
     execve(args[0], args, environ);
@@ -94,7 +79,6 @@ int unit_active(void) {
   return 0;
 }
 
-/* Global state flags for single-threaded orchestration loop */
 volatile int active_override = 0;
 volatile sig_atomic_t active_keep = 1;
 volatile sig_atomic_t last_sig = 0;
@@ -107,7 +91,6 @@ static void sig_handler(int signum) {
   } else if (signum == SIGHUP) {
     reload_flag = 1;
   } else {
-    /* Fatal signal: Perform emergency hardware restoration */
     daemon_failsafe(signum);
     _exit(signum);
   }
@@ -124,7 +107,6 @@ void init_signals(void) {
   sigaction(SIGINT, &sa, NULL);
   sigaction(SIGHUP, &sa, NULL);
 
-  /* Fatal signals for emergency restoration */
   sigaction(SIGSEGV, &sa, NULL);
   sigaction(SIGABRT, &sa, NULL);
   sigaction(SIGILL, &sa, NULL);
@@ -156,8 +138,7 @@ void notify_ready(void) {
     memcpy(addr.sun_path, sock_path, path_len);
   }
 
-  typedef unsigned int socklen_t;
-  socklen_t addr_len = offsetof(struct sockaddr_un, sun_path) + path_len;
+  __socklen_t addr_len = offsetof(struct sockaddr_un, sun_path) + path_len;
 
   const char *msg = "READY=1\n";
   (void)sendto(fd, msg, strlen(msg), MSG_NOSIGNAL, (struct sockaddr *)&addr,
@@ -166,15 +147,28 @@ void notify_ready(void) {
 }
 
 void log_shutdown(void) {
-  char buf[128];
-  printf_sn(buf, 128, "Shutting down daemon... (Signal: %d)\n", (int)last_sig);
+  char buf[LOG_BUFFER_SIZE];
+  printf_sn(buf, LOG_BUFFER_SIZE, "Shutting down daemon... (Signal: %d)\n",
+            (int)last_sig);
   write(2, buf, strlen(buf));
 }
 
 void daemon_restore(int signum) {
   (void)signum;
   cppc_restore();
-  system("X3D_EXEC=1 sh /usr/lib/x3d-toggle/scripts/tools/reset.sh");
+
+  pid_t pid = fork();
+  if (pid == 0) {
+    char *args[] = {(char *)"/bin/sh",
+                    (char *)"/usr/lib/x3d-toggle/scripts/tools/reset.sh",
+                    NULL};
+    char *envp[] = {(char *)"X3D_EXEC=1", NULL};
+    execve(args[0], args, envp);
+    _exit(EXIT_FAILURE);
+  } else if (pid > 0) {
+    int status;
+    (void)waitpid(pid, &status, 0);
+  }
 }
 
 void daemon_failsafe(int sig) {

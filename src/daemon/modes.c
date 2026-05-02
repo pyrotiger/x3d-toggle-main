@@ -12,10 +12,10 @@
 #include "../build/xui.h"
 #include "cli.h"
 #include "error.h" // IWYU pragma: keep
-#include "libc.h"
 #include "ipc.h"
-#include "systemd.h"
+#include "libc.h"
 #include "scheduler.h"
+#include "systemd.h"
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -35,7 +35,7 @@ static const char *find_path(void) {
 
   for (size_t i = 0; i < sizeof(targets) / sizeof(targets[0]); i++) {
     if (access(targets[i], R_OK) == 0) {
-      scat(x3d_path_cache, targets[i], sizeof(x3d_path_cache));
+      printf_sn(x3d_path_cache, sizeof(x3d_path_cache), "%s", targets[i]);
       return x3d_path_cache;
     }
   }
@@ -45,7 +45,7 @@ static const char *find_path(void) {
 int mode(char *current_mode, size_t max_len) {
   const char *path = find_path();
   if (!path) {
-    scat(current_mode, "unknown", max_len);
+    printf_sn(current_mode, max_len, "unknown");
     return ERR_HW;
   }
   int fd = open(path, O_RDONLY);
@@ -66,7 +66,7 @@ int mode_path(char *buf, size_t size) {
   const char *path = find_path();
   if (!path)
     return ERR_HW;
-  scat(buf, path, size);
+  printf_sn(buf, size, "%s", path);
   return ERR_SUCCESS;
 }
 
@@ -82,8 +82,8 @@ int cli_set_mode(const char *target) {
   return (n > 0) ? ERR_SUCCESS : ERR_IO;
 }
 
-int cli_set_dual(void) { return cli_set_mode("dual"); } // isnt this redundant
-int cli_set_swap(void) { return cli_set_mode("swap"); } // isnt this redundant
+int cli_set_dual(void) { return cli_set_mode("dual"); }
+int cli_set_swap(void) { return cli_set_mode("swap"); }
 
 int cli_set_core(int core_id, int online) {
   char path[128];
@@ -98,56 +98,36 @@ int cli_set_core(int core_id, int online) {
   return (n > 0) ? ERR_SUCCESS : ERR_IO;
 }
 
-/**
- * x3d_mode_apply - Orchestrates hardware and OS state transitions
- * @mode: The target partition (PART_DUAL, PART_CACHE, or PART_FREQ)
- *
- * Returns: 0 on success, -1 on failure
- */
 int cli_mode_apply(int mode) {
-    /* If running as non-root user (CLI standalone via udev permissions),
-     * we cannot change cgroups or kernel scheduling. Skip OS-level transitions.
-     */
-    if (geteuid() != 0) {
-        return 0;
-    }
-
-    /* 1. Hardware State Transition (CCD Affinity) 
-     * Applies the partition to the current process (pid 0) 
-     */
-    int aff_res = affinity_partition(0, mode);
-    if (aff_res != 0) {
-        journal_error(ERR_AFFINITY, aff_res);
-        return -1;
-    }
-
-    /* 2. OS Scheduler Optimization 
-     * We trigger SCHED_GAMING (3ms slices + BORE Shift 14) only when 
-     * the cache-focused CCD is prioritized. Otherwise, we restore Balanced.
-     */
-    sched_t target_sched = (mode == PART_CACHE) ? SCHED_GAMING : SCHED_BALANCED;
-    
-    if (scheduler_set(target_sched) != 0) {
-        /* We log a warning but don't fail the hardware transition, 
-         * as the system is still functional without the scheduler tweak.
-         */
-        journal_warn(ERR_HW);
-    }
-
+  if (geteuid() != 0) {
     return 0;
+  }
+
+  int aff_res = affinity_partition(0, mode);
+  if (aff_res != 0) {
+    journal_error(ERR_AFFINITY, aff_res);
+    return -1;
+  }
+
+  sched_t target_sched = (mode == PART_CACHE) ? SCHED_GAMING : SCHED_BALANCED;
+
+  if (scheduler_set(target_sched) != 0) {
+    journal_warn(ERR_HW);
+  }
+
+  return 0;
 }
 
 static int ccd_change(const char *mode) {
-  int hw_res = ERR_SUCCESS;
   char display_mode[BUFF_DISPLAY];
   const char *status_text = "profile";
 
   if (strcmp(mode, "cache") == 0) {
-    scat(display_mode, "LATENCY-OPTIMIZED", sizeof(display_mode));
+    printf_sn(display_mode, sizeof(display_mode), "LATENCY-OPTIMIZED");
   } else if (strcmp(mode, "frequency") == 0) {
-    scat(display_mode, "THROUGHPUT-OPTIMIZED", sizeof(display_mode));
+    printf_sn(display_mode, sizeof(display_mode), "THROUGHPUT-OPTIMIZED");
   } else {
-    scat(display_mode, mode, sizeof(display_mode));
+    printf_sn(display_mode, sizeof(display_mode), "%s", mode);
     for (int i = 0; display_mode[i]; i++) {
       if (display_mode[i] >= 'a' && display_mode[i] <= 'z')
         display_mode[i] -= 32;
@@ -155,7 +135,7 @@ static int ccd_change(const char *mode) {
   }
   display_mode[sizeof(display_mode) - 1] = '\0';
 
-  int ipc_res = ERR_SUCCESS;
+  int ipc_res = ERR_IPC;
   if (strcmp(mode, "cache") == 0 || strcmp(mode, "frequency") == 0 ||
       strcmp(mode, "dual") == 0 || strcmp(mode, "swap") == 0) {
     socket_send("SET_DAEMON manual", NULL, 0);
@@ -164,19 +144,22 @@ static int ccd_change(const char *mode) {
     ipc_res = socket_send(cmd, NULL, 0);
   }
 
+  if (ipc_res == ERR_SUCCESS) {
+    char path[256] = "unknown";
+    mode_path(path, sizeof(path));
+    printf_step("${ALRIGHT} ${COLOR_CYAN}%s${COLOR_RESET} %s applied via "
+                "${COLOR_CYAN}%s",
+                display_mode, status_text, path);
+    return ERR_SUCCESS;
+  }
+
+  int hw_res = ERR_SUCCESS;
   if (strcmp(mode, "dual") == 0) {
     hw_res = cli_set_dual();
-    cli_mode_apply(PART_DUAL);
   } else if (strcmp(mode, "swap") == 0) {
     hw_res = cli_set_swap();
-    cli_mode_apply(PART_FREQ);
   } else {
     hw_res = cli_set_mode(mode);
-    if (strcmp(mode, "cache") == 0) {
-      cli_mode_apply(PART_CACHE);
-    } else if (strcmp(mode, "frequency") == 0) {
-     cli_mode_apply(PART_FREQ);
-    }
   }
 
   if (hw_res != ERR_SUCCESS) {
@@ -186,14 +169,10 @@ static int ccd_change(const char *mode) {
 
   char path[256] = "unknown";
   mode_path(path, sizeof(path));
-  
-  if (ipc_res != ERR_SUCCESS) {
-    printf_step("${ALRIGHT} ${COLOR_CYAN}%s${COLOR_RESET} %s applied via ${COLOR_CYAN}%s${COLOR_RESET} - ${COLOR_YELLOW}IPC socket offline",
-                display_mode, status_text, path);
-  } else {
-    printf_step("${ALRIGHT} ${COLOR_CYAN}%s${COLOR_RESET} %s applied via ${COLOR_CYAN}%s",
-                display_mode, status_text, path);
-  }
+  printf_step(
+      "${ALRIGHT} ${COLOR_CYAN}%s${COLOR_RESET} %s applied via "
+      "${COLOR_CYAN}%s${COLOR_RESET} - ${COLOR_YELLOW}IPC socket offline",
+      display_mode, status_text, path);
 
   return ERR_SUCCESS;
 }
@@ -225,35 +204,56 @@ int cli_mode_swap(int argc, char *argv[]) {
 int cli_mode_auto(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
-  printf_step("${RELOAD} Initiating HARD RESET: Restoring CPPC defaults and purging session...");
+  printf_step("${RELOAD} Initiating HARD RESET: Restoring CPPC defaults and "
+              "purging session...");
 
-  system("X3D_EXEC=1 sh /usr/lib/x3d-toggle/scripts/tools/reset.sh");
+  pid_t pid = fork();
+  if (pid == 0) {
+    char *args[] = {(char *)"/bin/sh",
+                    (char *)"/usr/lib/x3d-toggle/scripts/tools/reset.sh",
+                    NULL};
+    char *envp[] = {(char *)"X3D_EXEC=1", NULL};
+    execve(args[0], args, envp);
+    _exit(EXIT_FAILURE);
+  } else if (pid > 0) {
+    int status;
+    (void)waitpid(pid, &status, 0);
+  }
 
-  unit_disable();
-  unit_stop();
+  if (socket_send("DAEMON_DISABLE", NULL, 0) != ERR_SUCCESS) {
+    unit_disable();
+    unit_stop();
+  }
 
-  printf_step("${ALRIGHT} ${COLOR_CYAN}CPPC NATIVE ${COLOR_RESET}control restored. Service disabled.");
+  printf_step("${ALRIGHT} ${COLOR_CYAN}CPPC NATIVE ${COLOR_RESET}control "
+              "restored. Service disabled.");
   return 0;
 }
 
 int cli_mode_reset(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
-  printf_step("${RELOAD} Initiating Hardware Re-probe: Restoring native heuristics...");
+  printf_step(
+      "${RELOAD} Initiating Hardware Re-probe: Restoring native heuristics...");
 
-  int res = ccd_change("reset");
-
-  if (unit_stop() == 0) {
-    printf_step("${PAUSE} Autonomous service ${COLOR_CYAN}STOPPED${COLOR_RESET}.");
+  if (socket_send("SET_MODE reset", NULL, 0) == ERR_SUCCESS) {
+    printf_step(
+        "${ALRIGHT} Hardware re-probe complete via daemon IPC.");
+    return ERR_SUCCESS;
   }
 
+  int res = ccd_change("reset");
   return res;
 }
 
 int cli_mode_default(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
-  printf_step("${RELOAD} SOFT RESET: Restoring default daemon rules and throughput baseline...");
+  if (getenv("X3D_SETUP")) {
+    printf_step("2,${SPARKLE} Initializing with default config daemon rules");
+  } else {
+    printf_step("2,${RELOAD} SOFT RESET: Restoring default daemon rules");
+  }
   config_update("DAEMON_STATE", "default");
   config_update("POLLING_INTERVAL", TOSTRING(CONFIG_POLLING_INTERVAL));
   config_update("LOAD_THRESHOLD", TOSTRING(CONFIG_LOAD_THRESHOLD));
@@ -265,9 +265,13 @@ int cli_mode_default(int argc, char *argv[]) {
   int r3 = socket_send("SET_MODE frequency", NULL, 0);
 
   if (r1 == 0 && r2 == 0 && r3 == 0) {
-    printf_step("${ALRIGHT} ${COLOR_CYAN}DEFAULT CONFIG${COLOR_RESET} restored. Orchestration active.");
+    if (getenv("X3D_SETUP")) {
+      printf_step("2,${ALRIGHT} DEFAULT CONFIG initialized. Daemon active.");
+    } else {
+      printf_step("${ALRIGHT} DEFAULT CONFIG restored. Daemon active.");
+    }
   } else {
-    printf_step("${WARN} ${COLOR_YELLOW}CONFIG UPDATED${COLOR_RESET} but Daemon is offline. Restart to apply.");
+    printf_step("${WARN} CONFIG UPDATED but daemon is offline. Restart to apply.");
   }
   return 0;
 }

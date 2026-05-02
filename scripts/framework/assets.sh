@@ -18,8 +18,8 @@ install_assets() {
     if [ -f "$X3D_TOGGLE/assets/ryzen.jpeg" ]; then
         install -m644 "$X3D_TOGGLE/assets/ryzen.jpeg" "$DESTDIR$DIR_ASSETS/x3d-toggle-launch.jpeg"
     fi
-    if [ -f "$X3D_TOGGLE/assets/ryzenlogo.svg" ]; then
-        install -m644 "$X3D_TOGGLE/assets/ryzenlogo.svg" "$DESTDIR$DIR_ASSETS/x3d-toggle.svg"
+    if [ -f "$X3D_TOGGLE/assets/x3d-toggle.jpg" ]; then
+        install -m644 "$X3D_TOGGLE/assets/x3d-toggle.jpg" "$DESTDIR$DIR_ASSETS/x3d-toggle.jpg"
     fi
     if [ -f "$X3D_TOGGLE/assets/amd.svg" ]; then
         install -m644 "$X3D_TOGGLE/assets/amd.svg" "$DESTDIR$DIR_ASSETS/x3d-toggle-amd.svg"

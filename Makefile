@@ -1,4 +1,3 @@
-#!/bin/sh
 ## `Makefile`
 ## Distribution Model: FHS-compliant, Lean and Stateless Build.
 ## Standardizes compilation and strict headless file deployment.
@@ -8,9 +7,9 @@
 CC             		 = clang
 CFLAGS        		?= -Wall -O2 -Wextra -D_GNU_SOURCE -fno-builtin -nostdlib -fno-stack-protector
 USER_CFLAGS          = -DBPF_NO_PRESERVE_ACCESS_INDEX
-LDFLAGS        		 = 
+LDFLAGS              = # intentionally empty; linker flags may be provided externally
 INCLUDES             = -Iinclude -Ibuild -Isrc/daemon -Isrc/cli -Isrc/daemon/polling -Isrc/daemon/bpf -DUSR_LIBS=\"$(USR_LIBS)\" -DVAR_LOGS=\"$(VAR_LOGS)\" -DVAR_AUDITS=\"$(VAR_AUDITS)\" -DVAR_DUMPS=\"$(VAR_DUMPS)\" -DDIR_BIN=\"$(DIR_BIN)\" -DDIR_RUN=\"$(DIR_RUN)\" 
-LIBS          		 = -lbpf
+LIBS          		 = -lbpf -lsystemd -lpthread -lrt -pthread -lc
 CLI           		 = -DCLI_BUILD
 BACKEND         	 = -DBACKEND
 
@@ -136,22 +135,16 @@ all: build
 
 $(TARGET_FRAMEWORK): framework
 framework:
-	X3D_FRAMEWORK=1 X3D_EXEC=1 sh ./scripts/framework/framework.sh --gen-all
+ifndef SKIP_FRAMEWORK
+	X3D_FRAMEWORK=1 X3D_EXEC=1 sh ./scripts/framework/framework.sh --sync
+endif
 	touch $(TARGET_FRAMEWORK)
 
-	@echo ""
-	@echo "==========================================================="
-	@if [ -z "$(DESTDIR)" ]; then \
-		echo "Local install detected. Run 'sudo make setup' to configure."; \
-	else \
-		echo "Packager install detected. User must configure via setup"; \
-		echo "script post-install."; \
-	fi
-	@echo "==========================================================="
-	@echo ""
+$(DIR_BUILD)/bpf.o: $(SRC_BPF)/bpf.c | prep
+	$(CC) $(CFLAGS) $(USER_CFLAGS) -target bpf -c $< -o $@
 
 $(TARGET_UI) $(TARGET_CCD) $(TARGET_CONFIG): $(TARGET_FRAMEWORK)
-build: $(TARGET_CLI) $(TARGET_DAEMON) $(TARGET_WRAPPER)
+build: $(TARGET_CLI) $(TARGET_DAEMON) $(TARGET_WRAPPER) $(DIR_BUILD)/bpf.o
 	true
 
 $(TARGET_CLI): $(SRCS_CLI) $(SRCS_GUI) $(TARGET_UI) $(TARGET_CCD) $(TARGET_FRAMEWORK)
@@ -213,34 +206,48 @@ install: build
 
 	install -dm755 $(DEST_TOOLS)
 	install -dm755 $(DEST_FRAMEWORK)
-	install -dm755 $(DEST_TOOLS)
 	install -m755 scripts/tools/*.sh $(DEST_TOOLS)/
 	install -m755 scripts/framework/*.sh $(DEST_FRAMEWORK)/
+	install -dm755 $(DEST_PIXMAPS)
+	install -m644 assets/x3d-toggle.jpg $(DEST_PIXMAPS)/x3d-toggle.jpg
 
 	install -dm755 $(DEST_APPS)
 	install -m644 packaging/x3d-toggle.desktop $(DEST_APPS)/x3d-toggle.desktop
 
-	install -dm755 $(DEST_PIXMAPS)
-	install -m644 assets/x3d-toggle.svg $(DEST_PIXMAPS)/x3d-toggle.svg
+	@command -v udevadm >/dev/null 2>&1 || { echo "Error: 'udevadm' not found; cannot reload udev rules." >&2; exit 1; }
+	@udevadm control --reload-rules && udevadm trigger || { echo "Error: failed to reload/trigger udev rules." >&2; exit 1; }
+	@command -v systemd-sysusers >/dev/null 2>&1 || { echo "Error: 'systemd-sysusers' not found; cannot create system users/groups." >&2; exit 1; }
+	@systemd-sysusers || { echo "Error: systemd-sysusers failed." >&2; exit 1; }
+	@command -v systemd-tmpfiles >/dev/null 2>&1 || { echo "Error: 'systemd-tmpfiles' not found; cannot create tmpfiles entries." >&2; exit 1; }
+	@systemd-tmpfiles --create $(DEST_TMPFILES)/x3d_toggle-tmpfiles.conf || { echo "Error: systemd-tmpfiles --create failed for $(DEST_TMPFILES)/x3d_toggle-tmpfiles.conf." >&2; exit 1; }
 
-	-chown :x3d-toggle $(DEST_LOGS)
-	-chown :x3d-toggle $(DEST_AUDITS)
-	chmod 775 $(DEST_LOGS)
-	chmod 775 $(DEST_AUDITS)
+	@chown :x3d-toggle $(DEST_LOGS)
+	@chown :x3d-toggle $(DEST_AUDITS)
+	@chmod 775 $(DEST_LOGS)
+	@chmod 775 $(DEST_AUDITS)
 
-	-udevadm control --reload-rules && udevadm trigger
-	-systemctl daemon-reload
+	systemctl daemon-reload
+	@echo ""
+	@echo "============================================================================"
+	@echo ""
+	@echo "    Install complete. Run 'sudo make setup' to configure."
+	@echo ""
+	@echo "============================================================================"
 
 setup:
-	@if [ "$$(id -u)" -ne 0 ]; then echo "    ❌ Error: Run with sudo make setup"; exit 1; fi
 	./setup.sh
 
 clean:
-	rm -rf bin/* build/* bin/.[!.]* build/.[!.]*
+	echo "  🧹 Cleaning build artifacts..."
+	rm -rf $(BIN) $(DIR_BUILD)
+	mkdir -p $(BIN) $(DIR_BUILD)
 
 uninstall:
 	-systemctl stop x3d-toggle.service
-	-killall -9 x3d-daemon
+	-killall -q -9 x3d-daemon
+	-killall -q -9 x3d-gui
+	-killall -q -9 bin/x3d-gui
+	-killall -q -9 /usr/bin/x3d-gui
 
 	rm -f $(DEST_RUN)/x3d-toggle.ipc
 	rm -f $(DEST_RUN)/x3d-toggle.pid
@@ -252,9 +259,8 @@ uninstall:
 	rm -f $(DEST_BIN)/x3d-toggle
 	rm -f $(DEST_BIN)/x3d-daemon
 	rm -f $(DEST_BIN)/x3d-run
+	rm -f $(DEST_BIN)/x3d-gui
 	rm -f $(DEST_BIN)/x3d
-	rm -f $(DEST_APPS)/x3d-toggle.desktop
-	rm -f $(DEST_PIXMAPS)/x3d-toggle.svg
 	rm -f $(DEST_SYSUSERS)/x3d_toggle-sysusers.conf
 	rm -f $(DEST_TMPFILES)/x3d_toggle-tmpfiles.conf
 	rm -f $(DEST_SYSTEMD)/x3d-toggle.service
@@ -262,6 +268,16 @@ uninstall:
 	rm -f $(DEST_POLKIT)/50-x3d_toggle-service.rules	
 	rm -f $(DEST_UDEV)/99-x3d-toggle.rules
 	rm -f $(DEST_POLKIT)/x3d-toggle.rules
+	rm -f $(DEST_PIXMAPS)/x3d-toggle.jpg
+	rm -f $(DEST_APPS)/x3d-toggle.desktop
+
+	# Local User Cleanup
+	ACTUAL_USER="$${SUDO_USER:-$$USER}"; \
+	USER_HOME=$$(getent passwd "$$ACTUAL_USER" | cut -d: -f6); \
+	rm -f "$$USER_HOME/.local/bin/x3d-gui"; \
+	rm -f "$$USER_HOME/.local/share/applications/x3d-toggle.desktop"; \
+	rm -f "$$USER_HOME/.local/share/pixmaps/x3d-toggle.jpg"; \
+	rm -f "$$USER_HOME/Desktop/x3d-toggle.desktop"
 
 	rm -rf $(DEST_LOGS)
 	rm -rf $(DEST_AUDITS)
@@ -270,11 +286,18 @@ uninstall:
 	rm -rf $(DEST_ETC)
 	rm -rf $(DEST_VAR)/lib/x3d-toggle
 
-	rm -rf bin/* build/* bin/.[!.]* build/.[!.]*
+	$(MAKE) clean
+	rm -rf etc/x3d-toggle.d
 
 	-udevadm control --reload-rules && udevadm trigger
 	-systemctl daemon-reload
+	-pkill -u x3d-toggle
+	-userdel -f x3d-toggle
+	-groupdel x3d-toggle
 
 purge: clean uninstall
+
+deploy:
+	./deploy.sh
 
 ## end of MAKEFILE

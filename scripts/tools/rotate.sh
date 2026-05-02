@@ -10,16 +10,16 @@
 ## - Compresses the rotated file with a timestamp suffix and truncates the live log.
 ## - Keeps the most recent N archives per log file (default 7).
 
-if [ "$X3D_EXEC" != "1" ]; then exit 1; fi
-
 _l_dir_lib="$(cd "$(dirname "$0")/../framework" && pwd)"
 . "$_l_dir_lib/framework.sh"
 
 DIR_LOGS="$VAR_LOGS"
 DIR_AUDITS="$VAR_AUDITS"
 
-MAX_BYTES=${MAX_BYTES:-10485760} # 10 * 1024 * 1024 = 10MB
-KEEP=${KEEP:-7}
+# Respect configuration values, with defaults
+KEEP=${JOURNAL_KEEP:-7}
+MAX_MB=${JOURNAL_MAX_MB:-10}
+MAX_BYTES=$((MAX_MB * 1024 * 1024))
 
 rotate_logs() {
     for logfile in "$DIR_LOGS"/*.log; do

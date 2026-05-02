@@ -1,7 +1,5 @@
 /* Configuration/Ruleset Management for the X3D Toggle Project
- *
  * `config.c` - Backend Consolidation
- *
  * Handles both the CLI handlers and the backend implementation for 
  * configuration loading, updating, and logic-generation. 
  */
@@ -25,34 +23,14 @@
 static int config_write(int argc, char *argv[], const char *ipc_command,
                         const char *config_key, const char *config_value,
                         const char *user_message) {
-
+  (void)argc; (void)argv;
   int ipc_res = socket_send(ipc_command, NULL, 0);
   if (ipc_res == 0) {
     printf_string("✅ %s (Active daemon synced)", user_message);
     return 0;
   }
 
-  if (geteuid() != 0) {
-    journal_warn(ERR_VIP);
-    pid_t pid = fork();
-    if (pid == 0) {
-      char *new_argv[32]; // Safety limit for CLI args
-      int idx = 0;
-      new_argv[idx++] = (char *)"/usr/bin/pkexec";
-      new_argv[idx++] = (char *)"/usr/bin/x3d-toggle";
-      for (int i = 1; i < argc && idx < 31; i++) {
-        new_argv[idx++] = argv[i];
-      }
-      new_argv[idx] = NULL;
-      char *env[] = {NULL};
-      execve(new_argv[0], new_argv, env);
-      _exit(1);
-    }
-    int status;
-    waitpid(pid, &status, 0);
-    return (status == 0) ? 0 : 1;
-  }
-
+  /* Daemon offline — write config directly (files are group-writable) */
   if (config_key != NULL && config_value != NULL) {
     config_update(config_key, config_value);
   } else if (strncmp(ipc_command, "GAME_ADD ", 9) == 0) {
@@ -261,24 +239,21 @@ int cli_config_generate(int argc, char *argv[]) {
   return res;
 }
 
-/* --- PART 2: Backend Implementation --- */
-
 void config_load(DaemonConfig *cfg) {
   cfg->polling_interval = CONFIG_POLLING_INTERVAL;
   cfg->refresh_interval = CONFIG_REFRESH_INTERVAL;
   cfg->dev_enable = CONFIG_DEV_ENABLE;
   cfg->affinity_level = CONFIG_AFFINITY_LEVEL;
-  scat(cfg->affinity_mask, CONFIG_AFFINITY_MASK, 63);
+  printf_sn(cfg->affinity_mask, 63, "%s", CONFIG_AFFINITY_MASK);
 
   cfg->load_threshold = CONFIG_LOAD_THRESHOLD;
   cfg->detection_level = CONFIG_DETECTION_LEVEL;
   cfg->ebpf_enable = CONFIG_EBPF_ENABLE;
   cfg->debug_enable = CONFIG_DEBUG_ENABLE;
-  scat(cfg->daemon_state, "default", 31);
-  scat(cfg->fallback_profile, CONFIG_FALLBACK_PROFILE, 63);
-  scat(cfg->server_address, CONFIG_SERVER_ADDRESS, 127);
+  printf_sn(cfg->daemon_state, 31, "default");
+  printf_sn(cfg->fallback_profile, 63, "%s", CONFIG_FALLBACK_PROFILE);
+  printf_sn(cfg->server_address, 127, "%s", CONFIG_SERVER_ADDRESS);
 
-  /* 2. Injected Payload Override: Load synchronized daemon.conf from framework */
   int fd = open(DAEMON_CONF_PATH, O_RDONLY);
   if (fd < 0) {
   }
@@ -305,9 +280,9 @@ void config_load(DaemonConfig *cfg) {
             else if (strcmp(ln, "DETECTION_LEVEL") == 0) cfg->detection_level = atoi(val);
             else if (strcmp(ln, "EBPF_ENABLE") == 0) cfg->ebpf_enable = atoi(val);
             else if (strcmp(ln, "DEBUG_ENABLE") == 0) cfg->debug_enable = atoi(val);
-            else if (strcmp(ln, "DAEMON_STATE") == 0) scat(cfg->daemon_state, val, 31);
-            else if (strcmp(ln, "FALLBACK_PROFILE") == 0) scat(cfg->fallback_profile, val, 63);
-            else if (strcmp(ln, "SERVER_ADDRESS") == 0) scat(cfg->server_address, val, 127);
+            else if (strcmp(ln, "DAEMON_STATE") == 0) printf_sn(cfg->daemon_state, 31, "%s", val);
+            else if (strcmp(ln, "FALLBACK_PROFILE") == 0) printf_sn(cfg->fallback_profile, 63, "%s", val);
+            else if (strcmp(ln, "SERVER_ADDRESS") == 0) printf_sn(cfg->server_address, 127, "%s", val);
           }
         }
         ln = nxt ? nxt + 1 : (void*)0;
@@ -384,11 +359,25 @@ int cli_config_update(int argc, char *argv[]) {
   (void)argc; (void)argv;
   printf_string("🛠️  Regenerating system configuration from source templates...");
 
-  char cmd_buf[512];
-  printf_sn(cmd_buf, sizeof(cmd_buf), "X3D_EXEC=1 sh %s/scripts/framework/config.sh --update", USR_LIBS);
-  
-  int res = system(cmd_buf);
-  if (res != 0) {
+  char config_path[256];
+  printf_sn(config_path, sizeof(config_path), "%s/scripts/framework/config.sh", USR_LIBS);
+
+  pid_t pid = fork();
+  if (pid == 0) {
+    char *args[] = {(char *)"/bin/sh", config_path, (char *)"--update", NULL};
+    char *envp[] = {(char *)"X3D_EXEC=1", NULL};
+    execve(args[0], args, envp);
+    _exit(1);
+  }
+
+  int res = ERR_IO;
+  if (pid > 0) {
+    int status;
+    waitpid(pid, &status, 0);
+    res = (WIFEXITED(status) && WEXITSTATUS(status) == 0) ? ERR_SUCCESS : ERR_IO;
+  }
+
+  if (res != ERR_SUCCESS) {
     journal_error(ERR_IO, "config.sh --update");
     return ERR_IO;
   }

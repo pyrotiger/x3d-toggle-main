@@ -1,5 +1,4 @@
 /* Error Handling Logic Header for the X3D Toggle Project
- *
  * `error.h` - Header only
  */
 
@@ -67,6 +66,7 @@ typedef int error_code;
 #define ERR_AFFINITY     -35
 #define ERR_GUI          -36
 #define ERR_EXEC         -37
+#define ERR_INVALID_ARGS -38
 
 void journal_error(error_code code, ...);
 void journal_warn(error_code code, ...);

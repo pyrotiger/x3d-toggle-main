@@ -1,6 +1,5 @@
 #!/bin/sh
 ## Configuration Interface Generator for the X3D Toggle Project
-##
 ## `config.sh`
 ## Generates `daemon.conf` in /etc/x3d-toggle.d/ for use/editing
 ## to build the x3d-toggle binary and modify runtime behavior
@@ -47,9 +46,12 @@ guard "DEBUG_ENABLE"
 guard "DEV_ENABLE"
 guard "AFFINITY_LEVEL"
 guard "AFFINITY_MASK"
+guard "AFFINITY_FREQ_MASK"
 guard "FALLBACK_PROFILE"
 guard "DAEMON_STATE"
 guard "SERVER_ADDRESS"
+guard "JOURNAL_KEEP"
+guard "JOURNAL_MAX_MB"
 
 _DAEMON_CONF="${DIR_BIN}/daemon.conf"
 
@@ -82,9 +84,12 @@ if [ "$1" = "--update" ]; then
                     "DEV_ENABLE=${DEV_ENABLE}" \
                     "AFFINITY_LEVEL=${AFFINITY_LEVEL}" \
                     "AFFINITY_MASK=${AFFINITY_MASK}" \
+                    "AFFINITY_FREQ_MASK=${AFFINITY_FREQ_MASK}" \
                     "FALLBACK_PROFILE=${FALLBACK_PROFILE}" \
                     "DAEMON_STATE=${DAEMON_STATE}" \
-                    "SERVER_ADDRESS=${SERVER_ADDRESS}"
+                    "SERVER_ADDRESS=${SERVER_ADDRESS}" \
+                    "JOURNAL_KEEP=${JOURNAL_KEEP}" \
+                    "JOURNAL_MAX_MB=${JOURNAL_MAX_MB}"
         printf_br
         printf_step "[GAMES_SYS]"
         while IFS= read -r _l_game; do
@@ -128,7 +133,9 @@ printf_step "2,${GEAR} Writing synchronized Configuration ruleset: build/config.
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#ifndef GUI_BUILD
 #include \"xui.h\"
+#endif
 
 #define CONFIG_PATH      \"${_DAEMON_CONF}\"
 #define GAMES_PATH       \"${_DAEMON_CONF}\"
@@ -195,7 +202,9 @@ printf_step "2,${GEAR} Writing synchronized configuration payload: build/daemon.
                 "AFFINITY_MASK=${AFFINITY_MASK}" \
                 "FALLBACK_PROFILE=${FALLBACK_PROFILE}" \
                 "DAEMON_STATE=${DAEMON_STATE}" \
-                "SERVER_ADDRESS=${SERVER_ADDRESS}"
+                "SERVER_ADDRESS=${SERVER_ADDRESS}" \
+                "JOURNAL_KEEP=${JOURNAL_KEEP}" \
+                "JOURNAL_MAX_MB=${JOURNAL_MAX_MB}"
     printf_br
     printf_step "[GAMES_SYS]"
     while IFS= read -r _l_game; do

@@ -5,11 +5,11 @@
 
 #define PROC_KERNEL "/proc/sys/kernel/"
 
-/* Internal helper for procfs writes */
 static int sysctl_write(const char *node, const char *value) {
     char path[128];
+    size_t expected = strlen(PROC_KERNEL) + strlen(node);
     int n = printf_sn(path, sizeof(path), "%s%s", PROC_KERNEL, node);
-    if (n < 0 || (size_t)n >= sizeof(path)) return -1;
+    if (n < 0 || (size_t)n != expected) return -1;
 
     int fd = open(path, O_WRONLY);
     if (fd < 0) return -1;
@@ -35,23 +35,21 @@ bool scheduler_check(void) {
 }
 
 int scheduler_set(sched_t mode) {
-    /* Root check: Mandatory for /proc/sys/kernel/ writes */
     if (geteuid() != 0) return -1;
 
     if (mode == SCHED_GAMING) {
-        /* Gaming Mode: Tighten granularity to 3ms to minimize micro-stutter */
-        sysctl_write("sched_cfs_bandwidth_slice_us", "3000");
+        if (sysctl_write("sched_cfs_bandwidth_slice_us", "3000") != 0) return -1;
         
         if (scheduler_check()) {
-            sysctl_write("sched_bore", "1");
-            sysctl_write("sched_bit_shift", "14"); // Aggressive burst identification
+            if (sysctl_write("sched_bore", "1") != 0) return -1;
+            if (sysctl_write("sched_bit_shift", "14") != 0) return -1; // Aggressive burst identification
         }
     } else {
-        /* Balanced Mode: Restore standard 5ms granularity */
-        sysctl_write("sched_cfs_bandwidth_slice_us", "5000");
+        if (sysctl_write("sched_cfs_bandwidth_slice_us", "5000") != 0) return -1;
         
         if (scheduler_check()) {
-            sysctl_write("sched_bit_shift", "12"); // Default BORE shift
+            if (sysctl_write("sched_bore", "0") != 0) return -1;
+            if (sysctl_write("sched_bit_shift", "12") != 0) return -1; // Default BORE shift
         }
     }
     
