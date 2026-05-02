@@ -61,8 +61,13 @@ int socket_send(const char *cmd, char *response, size_t resp_len) {
     } else {
         char buf[16] = {0};
         ssize_t bytes_read = read(fd, buf, sizeof(buf) - 1);
-        if (bytes_read <= 0) {
+        if (bytes_read < 0) {
             journal_error(ERR_IPC, errno);
+            close(fd);
+            return ERR_IPC;
+        }
+        if (bytes_read == 0) {
+            journal_error(ERR_IPC, ERR_IPC);
             close(fd);
             return ERR_IPC;
         }
