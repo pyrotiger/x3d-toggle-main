@@ -33,9 +33,17 @@ typedef unsigned long sigset_t;
 extern int errno;
 #endif
 
-#define ENOENT 2
+#define ENOENT  2
 #define EAGAIN 11
 #define EACCES 13
+#define ERANGE 34
+#endif
+
+#ifndef INT_MAX
+#define INT_MAX  2147483647
+#endif
+#ifndef INT_MIN
+#define INT_MIN  (-INT_MAX - 1)
 #endif
 
 #define EXIT_SUCCESS 0
@@ -212,8 +220,10 @@ void srand(unsigned int seed);
 int rand(void);
 int atoi(const char *s);
 double atof(const char *s);
+long strtol(const char *p, char **e, int b);
 unsigned long long strtoull(const char *p, char **e, int b);
 int toupper(int c);
+int isspace(int c);
 size_t strlcat_local(char *dst, const char *src, size_t size);
 
 char *getenv(const char *name);
